@@ -173,6 +173,13 @@ a { color: var(--accent); text-decoration: none; }
   border-left: 3px solid var(--accent);
   padding-left: 14px;
 }
+.quote-card blockquote cite {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  font-style: normal;
+  font-weight: 600;
+}
 
 .announcements-card ul,
 .policies-card ul {

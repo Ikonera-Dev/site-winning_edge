@@ -121,7 +121,13 @@
     </div>
   `;
 
-  $("#quote-of-week").textContent = `“${siteData.thisWeek.quoteOfWeek}”`;
+  const quoteEl = $("#quote-of-week");
+  quoteEl.textContent = `“${siteData.thisWeek.quoteOfWeek}”`;
+  if (siteData.thisWeek.quoteAuthor) {
+    const cite = document.createElement("cite");
+    cite.textContent = `— ${siteData.thisWeek.quoteAuthor}`;
+    quoteEl.appendChild(cite);
+  }
 
   const speakersEl = $("#this-week-speakers");
   speakersEl.innerHTML = siteData.thisWeek.speakers.map(resolvePerson).map((s) => `

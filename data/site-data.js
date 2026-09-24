@@ -15,7 +15,7 @@
  *  1. Open the weekly BNI email (the .oft/.eml Outlook file, or whatever
  *     Friday recap you send out).
  *  2. Update the `thisWeek` block: meetingDateLabel, trophyWinner,
- *     quoteOfWeek, speakers, announcements, metrics.
+ *     quoteOfWeek (+ optional quoteAuthor), speakers, announcements, metrics.
  *  3. Drop the OLD "This Week" speakers into `rotation` if they're not
  *     already there, and delete the date from `rotation` once it has passed
  *     (or just leave it — past dates are hidden automatically).
@@ -69,16 +69,17 @@ window.SITE_DATA = {
    * THIS WEEK — replace every field each Friday.
    */
   thisWeek: {
-    meetingDateLabel: "September 18th, 2026",
+    meetingDateLabel: "September 25th, 2026",
     trophyWinner: {
       name: "Peter Hamilton",
       company: "Mirick O'Connell",
       note: "Congratulations, Peter!"
     },
-    quoteOfWeek: "Your competition can copy your product, your pricing, and your strategy — but they cannot copy your persistence.",
+    quoteOfWeek: "Every problem is a gift, without problems we would not grow.",
+    quoteAuthor: "Tony Robbins",
     speakers: [
-      { name: "Adam Bortolussi", company: "Bortolussi Wealth Management" },
-      { name: "Clif Newton", company: "Ulta Home Improvements" }
+      { name: "Raphael Guimaraes", company: "SumZero Energy Systems" },
+      { name: "Brendon Mourao", company: "Ikonera" }
     ],
     announcements: [
       "The speaker schedule has been updated to include a full rotation of members — please review below and let Leadership know if your date no longer works.",
