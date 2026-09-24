@@ -69,11 +69,11 @@ window.SITE_DATA = {
    * THIS WEEK — replace every field each Friday.
    */
   thisWeek: {
-    meetingDateLabel: "July 24th, 2026",
+    meetingDateLabel: "September 18th, 2026",
     trophyWinner: {
-      name: "Christopher Fitts",
-      company: "Fitts Insurance Agency",
-      note: "Congratulations, Chris!"
+      name: "Peter Hamilton",
+      company: "Mirick O'Connell",
+      note: "Congratulations, Peter!"
     },
     quoteOfWeek: "Your competition can copy your product, your pricing, and your strategy — but they cannot copy your persistence.",
     speakers: [
@@ -85,11 +85,11 @@ window.SITE_DATA = {
       "Quarterly dues reminder: if you haven't paid yet, reach out to Treasurer Matt Cuneo."
     ],
     metrics: {
-      asOf: "07/18/2026",
+      asOf: "09/18/2026",
       ytdSince: "October 1st",
-      tyfcb:      { label: "TYFCB",      prefix: "$", lastWeek: 37300, ytd: 723437, goal: 1000000 },
-      oneToOnes:  { label: "1-to-1's",   prefix: "",  lastWeek: 4,     ytd: 617,    goal: 2500 },
-      ceus:       { label: "CEUs",       prefix: "",  lastWeek: 14,    ytd: 647,    goal: 2400 },
+      tyfcb:      { label: "TYFCB",      prefix: "$", lastWeek: 35600, ytd: 837970, goal: 1000000 },
+      oneToOnes:  { label: "1-to-1's",   prefix: "",  lastWeek: 18,    ytd: 689,    goal: 2500 },
+      ceus:       { label: "CEUs",       prefix: "",  lastWeek: 3,     ytd: 698,    goal: 2400 },
       referrals:  { label: "Referrals",  prefix: "",  lastWeek: null,  ytd: null,   goal: null }
     }
   },
