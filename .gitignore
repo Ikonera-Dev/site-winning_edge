@@ -1,0 +1,16 @@
+# Source emails used to fill in data/site-data.js — internal, never publish
+*.oft
+*.eml
+*.msg
+
+# Python
+__pycache__/
+*.pyc
+
+# Local Claude Code settings (per-machine)
+.claude/settings.local.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini

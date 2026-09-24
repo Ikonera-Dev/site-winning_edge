@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BNI Winning Edge</title>
+<meta name="description" content="BNI Winning Edge — a Friday-morning referral marketing chapter in Framingham, MA. Members, leadership, this week's meeting, and the speaker rotation.">
+<link rel="preconnect" href="https://bniconnectglobal.com">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="#top">
+      <img class="brand-logo" src="https://fcebsch.stripocdn.email/content/guids/CABINET_ba47cec0c6e108c64ef7caa6808463230f2a50304d6371bebf24351c9946f48c/images/bni_logo_red_pms_final.png" alt="BNI logo">
+      <span class="brand-name">Winning Edge</span>
+    </a>
+    <nav class="site-nav">
+      <a href="#this-week">This Week</a>
+      <a href="#rotation">Rotation</a>
+      <a href="#people">Members &amp; Leadership</a>
+      <a href="#visit">Visit Us</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <h1 id="chapter-name">BNI Winning Edge</h1>
+      <p class="hero-tagline" id="chapter-tagline">Givers Gain — a weekly referral marketing chapter</p>
+      <div class="hero-meeting" id="hero-meeting"><!-- filled by app.js --></div>
+    </div>
+  </section>
+
+  <!-- THIS WEEK -->
+  <section id="this-week" class="section">
+    <div class="wrap">
+      <h2 class="section-title">This Week</h2>
+      <p class="section-sub" id="this-week-date"></p>
+
+      <div class="week-grid">
+
+        <article class="card trophy-card">
+          <h3 class="card-label">🏆 Trophy Winner</h3>
+          <div class="person-row" id="trophy-winner"><!-- filled by app.js --></div>
+        </article>
+
+        <article class="card quote-card">
+          <h3 class="card-label">Quote of the Week</h3>
+          <blockquote id="quote-of-week"></blockquote>
+        </article>
+
+        <article class="card speakers-card">
+          <h3 class="card-label">This Week's Speakers</h3>
+          <div class="person-list" id="this-week-speakers"><!-- filled by app.js --></div>
+        </article>
+
+        <article class="card announcements-card">
+          <h3 class="card-label">Announcements</h3>
+          <ul id="announcements-list"></ul>
+        </article>
+
+      </div>
+
+      <h3 class="subsection-title">PALMS Report <span class="muted" id="palms-asof"></span></h3>
+      <div class="stat-grid" id="palms-stats"><!-- filled by app.js --></div>
+
+    </div>
+  </section>
+
+  <!-- ROTATION -->
+  <section id="rotation" class="section section-alt">
+    <div class="wrap">
+      <h2 class="section-title">Upcoming Speaker Rotation</h2>
+      <p class="section-sub">Can't make your date? Find someone to swap with and let Leadership know.</p>
+      <div class="table-wrap">
+        <table class="rotation-table">
+          <thead>
+            <tr><th>Date</th><th>Speakers</th></tr>
+          </thead>
+          <tbody id="rotation-body"><!-- filled by app.js --></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PEOPLE: LEADERSHIP + MEMBERS TABS -->
+  <section id="people" class="section">
+    <div class="wrap">
+      <h2 class="section-title">Our People</h2>
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="leadership" role="tab" aria-selected="true">Chapter Leadership</button>
+        <button class="tab-btn" data-tab="members" role="tab" aria-selected="false">Members</button>
+      </div>
+
+      <div class="tab-panel active" data-panel="leadership" id="leadership-panel">
+        <!-- filled by app.js -->
+      </div>
+
+      <div class="tab-panel" data-panel="members" id="members-panel">
+        <div class="member-grid" id="members-grid"><!-- filled by app.js --></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- VISIT US -->
+  <section id="visit" class="section section-alt">
+    <div class="wrap visit-grid">
+      <div>
+        <h2 class="section-title">Visit Us</h2>
+        <p id="visit-meeting-line"></p>
+        <p id="visit-address"></p>
+        <p class="muted" id="visit-parking"></p>
+        <a class="btn" id="visit-map-link" href="#" target="_blank" rel="noopener">View on Google Maps</a>
+      </div>
+      <div class="policies-card">
+        <h3 class="card-label">Good to Know</h3>
+        <ul id="policies-list"></ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <strong id="footer-chapter-name">BNI Winning Edge</strong>
+      <p class="muted" id="footer-region">BNI Northeast Massachusetts</p>
+    </div>
+    <div class="footer-social" id="footer-social"><!-- filled by app.js --></div>
+    <div class="footer-dues" id="footer-dues"></div>
+  </div>
+</footer>
+
+<script src="data/site-data.js"></script>
+<script src="data/members-auto.js"></script>
+<script src="data/overrides.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
+
