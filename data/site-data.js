@@ -99,11 +99,12 @@ window.SITE_DATA = {
    * delete rows once they've been featured in `thisWeek` and passed.
    */
   rotation: [
-    { date: "July 31",     speakers: "Chris F. / Ian M." },
-    { date: "August 7",    speakers: "Peter H. / Mike S." },
-    { date: "August 14",   speakers: "Matt C. / Joe N." },
-    { date: "August 21",   speakers: "Jeremy C. / Tacyanne S." },
-    { date: "August 28",   speakers: "Peter E. / Chris M." },
-    { date: "September 4", speakers: "Brendon M. / Leticia D." }
+    { date: "September 25", speakers: "Raphael G. / Brendon M." },
+    { date: "October 2",    speakers: "Adam B. / Clif N." },
+    { date: "October 9",    speakers: "Matt C. / Ian M." },
+    { date: "October 16",   speakers: "Peter H. / Mike S." },
+    { date: "October 23",   speakers: "Chris F. / Joe N." },
+    { date: "October 30",   speakers: "Jeremy C. / Peter E." },
+    { date: "November 6",   speakers: "Chris M. / Jake S." }
   ]
 };
