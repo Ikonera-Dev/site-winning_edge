@@ -19,6 +19,8 @@ data/members.js           ← member database + roles table. Synced from BNI, sa
 img/                      ← site images (logo, favicon, share image). See img/README.md.
 img/members/              ← your own member photos. See img/members/README.md.
 scripts/sync-bni.py       checks BNI against data/members.js and adds/fills in people
+scripts/palms.py          shows, requests and updates the PALMS numbers in site-data.js
+.claude/skills/           Claude Code skills for this repo (palms-report)
 CNAME                     custom domain for GitHub Pages. Don't delete.
 ```
 
@@ -192,7 +194,24 @@ speakers), the `quote` (`text` + `author`), the `palms` report, and the
 (full-year goal). The site shows the difference as "+$35,600 since last
 week" and the meter as a % of the goal. Each week, copy every `ytd` into
 `lastWeekYtd`, type the new `ytd` numbers, and set `asOf` to the report
-date as `YYYY-MM-DD`. Use `null` for anything not reported. Pick the trophy
+date as `YYYY-MM-DD`. Use `null` for anything not reported.
+
+`scripts/palms.py` does this for you:
+
+```bash
+python3 scripts/palms.py                 # show the report, incl. what the site will show
+python3 scripts/palms.py new-week        # roll the week over; asks for each number
+python3 scripts/palms.py set ceus=701    # fix a number in the current week
+python3 scripts/palms.py request         # fill-in form to ask someone for the numbers
+```
+
+For each metric, `new-week` accepts the new total (`873570`), the amount added
+this week (`+35600`), `same`, or `-` (not reported). `--from <file>` reads a
+filled-in `request` form, `--new-year` starts a new reporting year, and
+`--dry-run` previews without saving. It refuses a total that went down, a
+date that isn't after the current one, or a missing metric, and leaves the
+file untouched when it does. In Claude Code, the `palms-report` skill
+(`.claude/skills/palms-report/`) walks through the same steps. Pick the trophy
 winner by moving `"trophyWinner": true` in `data/members.js`. Full instructions
 are in the comment block at the top of that file.
 

@@ -103,7 +103,9 @@ window.SITE_DATA = {
    *   Use null for anything not reported.
    *
    *   Each week: copy every `ytd` into `lastWeekYtd`, then type the new
-   *   `ytd` numbers and `asOf` date.
+   *   `ytd` numbers and `asOf` date. Or let the script do it:
+   *     python3 scripts/palms.py new-week     (asks for each number)
+   *   It rewrites this block only, so keep one metric per line.
    */
   palms: {
     asOf: "2026-09-18",
