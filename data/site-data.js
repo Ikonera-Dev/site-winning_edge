@@ -5,10 +5,10 @@
  *  This is the file you touch every Friday. It holds the chapter info, this
  *  week's meeting recap, and the upcoming speaker rotation.
  *
- *  The member directory and leadership team are NOT in this file — those
- *  are fetched from BNI directly. See data/members-auto.js (auto-generated,
- *  regenerate with `python scripts/sync-bni.py`) and data/overrides.js (for
- *  anything BNI doesn't have, like a missing company link or an email).
+ *  The member directory and leadership team are NOT in this file — they
+ *  live in the member database, data/members.js (kept in sync with BNI by
+ *  `python3 scripts/sync-bni.py`; edit it directly for anything BNI doesn't
+ *  have, like a missing company link or an email).
  *
  *  HOW TO UPDATE EACH WEEK
  *  ------------------------------------------------------------------------
@@ -24,7 +24,7 @@
  *  TROPHY WINNER / SPEAKERS — you only need `name` and `company`.
  *  ------------------------------------------------------------------------
  *  Their photo and company link are looked up automatically by matching
- *  `name` against the member directory (data/members-auto.js), so most
+ *  `name` against the member database (data/members.js), so most
  *  weeks that's all you type. If a speaker is a visitor/not a chapter
  *  member (so there's nothing to match), you can add `photo` and
  *  `companyUrl` directly here and they'll be used as-is.

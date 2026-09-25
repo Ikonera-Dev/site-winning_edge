@@ -1,21 +1,18 @@
 /**
- * Renders the page from three data sources, loaded before this script:
- *   - data/site-data.js     chapter info, this week, rotation (hand-edited)
- *   - data/members-auto.js  member + leadership roster (auto-fetched by
- *                           scripts/sync-bni.py — do not hand-edit)
- *   - data/overrides.js     manual per-person corrections/additions
- *                           (hand-edited, always wins, survives re-syncs)
+ * Renders the page from two data sources, loaded before this script:
+ *   - data/site-data.js  chapter info, this week, rotation (hand-edited)
+ *   - data/members.js    member database + leadership roles (kept in sync
+ *                        with BNI by scripts/sync-bni.py, safe to hand-edit)
  *
  * No build step, no framework — plain DOM.
  */
 (function () {
   try {
   const siteData = window.SITE_DATA;
-  const auto = window.BNI_AUTO;
-  const overrides = window.SITE_OVERRIDES || { members: {}, leadership: {} };
+  const db = window.MEMBERS_DB;
 
   if (!siteData) throw new Error("SITE_DATA not found — is data/site-data.js loaded?");
-  if (!auto) throw new Error("BNI_AUTO not found — run `python scripts/sync-bni.py`, or is data/members-auto.js loaded?");
+  if (!db) throw new Error("MEMBERS_DB not found — is data/members.js loaded? Run `python3 scripts/sync-bni.py` to create it.");
 
   const DEFAULT_PHOTO = "https://bniconnectglobal.com/web/images/default_profile.gif";
 
@@ -39,28 +36,30 @@
     return `${metric.prefix || ""}${formatNumber(metric.ytd)}`;
   }
 
-  /* ---------------- Merge auto-fetched roster with manual overrides ---------------- */
-  // Only fields present in the override object are changed; everything else
-  // keeps whatever sync-bni.py fetched from BNI.
+  /* ---------------- Member database ---------------- */
+  // Every person in data/members.js, addressable by id. `photo` is the
+  // chosen image (a file in img/members/ or a URL); when it's empty the
+  // BNI Connect photo is used, then BNI's default silhouette.
 
-  function mergePerson(person, override) {
-    return override ? { ...person, ...override } : person;
-  }
+  const people = db.people.map((p) => ({ ...p, photo: p.photo || p.bniPhoto || DEFAULT_PHOTO }));
+  const byId = {};
+  people.forEach((p) => { byId[p.id] = p; });
 
-  const members = auto.members.map((m) => mergePerson(m, overrides.members[m.name]));
+  // The Members grid shows only enabled people.
+  const members = people.filter((p) => p.enabled);
 
-  const leadership = auto.leadership.map((section) => ({
+  // Leadership roles point at people by id.
+  const leadership = db.leadership.map((section) => ({
     section: section.section,
-    people: section.people.map((p) => mergePerson(p, overrides.leadership[p.name])),
+    people: section.members
+      .filter((ref) => byId[ref.id] || console.warn(`Leadership id not in members.js: ${ref.id}`))
+      .map((ref) => ({ ...byId[ref.id], titles: ref.titles })),
   }));
 
   // A single name -> {photo, companyUrl} lookup, used to auto-fill This
   // Week's trophy winner / speakers so you only have to type a name there.
   const directory = {};
-  members.forEach((m) => { directory[m.name] = m; });
-  leadership.forEach((section) => section.people.forEach((p) => {
-    if (!directory[p.name]) directory[p.name] = p;
-  }));
+  people.forEach((p) => { directory[p.name] = p; });
 
   function resolvePerson(entry) {
     const known = directory[entry.name];
@@ -226,8 +225,8 @@
     return `<div class="contact-row">${items.join("")}</div>`;
   }
 
-  // Company name renders as a link when we have a URL (fetched from BNI or
-  // supplied in data/overrides.js) and as plain unlinked text when we don't.
+  // Company name renders as a link when we have a URL (from BNI or added by
+  // hand in data/members.js) and as plain unlinked text when we don't.
   function companyLine(person) {
     return person.companyUrl
       ? `<a href="${esc(person.companyUrl)}" target="_blank" rel="noopener">${esc(person.company)}</a>`

@@ -15,10 +15,10 @@ index.html               the page shell (structure only — no content to edit h
 css/styles.css            theme: white background, #CF2030 (BNI red) accent
 js/app.js                 renders the data files below into the page
 data/site-data.js         ← chapter info + THIS WEEK + rotation. Edit weekly.
-data/members-auto.js      ← member + leadership roster. AUTO-GENERATED, don't hand-edit.
-data/overrides.js         ← manual fixes/additions on top of members-auto.js. Edit as needed.
+data/members.js           ← member database + leadership roles. Synced from BNI, safe to hand-edit.
 img/                      ← site images (logo, favicon, share image). See img/README.md.
-scripts/sync-bni.py       fetches the roster from BNI and regenerates members-auto.js
+img/members/              ← your own member photos. See img/members/README.md.
+scripts/sync-bni.py       checks BNI against data/members.js and adds/fills in people
 CNAME                     custom domain for GitHub Pages. Don't delete.
 ```
 
@@ -26,57 +26,75 @@ Everything in this repo is publicly reachable on the live site, so never
 commit anything private (the weekly meeting email files `*.oft`/`*.eml`/`*.msg`
 are already blocked by `.gitignore`).
 
-## Where the member/leadership data comes from
+## The member database (`data/members.js`)
 
-The member directory and leadership team are fetched from the chapter's
-public BNI page rather than typed in by hand — run:
+Every person (members, leadership, and leadership-only people like the
+Director Consultant) has one record in `data/members.js`, addressed by
+their BNI member `id`:
+
+```json
+{
+  "id": "Rag3V6j3CjTYuZwhSHWAqw==",
+  "enabled": true,
+  "name": "Adam Bortolussi",
+  "firstName": "Adam",
+  "lastName": "Bortolussi",
+  "company": "Bortolussi Wealth Management",
+  "companyUrl": "",
+  "category": "Financial Advisor",
+  "categoryPath": "Finance & Insurance > Financial Advisor > Financial Advisor",
+  "phone": "5084163534",
+  "email": "",
+  "photo": "",
+  "bniPhoto": "",
+  "bniProfileUrl": "https://bninortheastma.com/en-US/memberdetails?...",
+  "bniMessageUrl": "https://bninortheastma.com/en-US/sendmessage?..."
+}
+```
+
+- **`enabled`** decides whether the person appears in the Members grid.
+  Leadership cards are driven by the `leadership` list at the bottom of the
+  file (roles from BNI, pointing at people by `id`), not by `enabled`.
+- **`email`**, a missing **`companyUrl`**, or a corrected **`company`** /
+  **`phone`**: just edit the record. The sync never overwrites a field that
+  already has a value.
+- **Photos:** `photo` is the image the site shows. Leave it `""` to use the
+  BNI Connect photo (`bniPhoto`), or put your own file in `img/members/` and
+  set `"photo": "img/members/adam-bortolussi.jpg"`. See
+  `img/members/README.md`.
+- Fields starting with **`bni`** mirror BNI and are refreshed on every sync.
+  Don't edit those.
+
+The file must stay valid JSON after the `window.MEMBERS_DB = ` line: double
+quotes, no trailing commas, no comments. The sync script stops with the line
+number if it can't read it. And like everything in this repo, it's public, so
+only add contact details members are happy to have online.
+
+### Syncing with BNI
 
 ```bash
-python3 scripts/sync-bni.py
+python3 scripts/sync-bni.py --dry-run
 ```
 
-whenever the roster changes (new member, a title changes hands, someone
-updates their BNI Connect photo). It takes a few seconds and rewrites
-`data/members-auto.js`.
+reads the chapter's public BNI page and reports, without changing anything:
+who's new, which empty fields BNI could fill in, where BNI differs from your
+values, and who's enabled here but no longer on BNI. Drop `--dry-run` to
+apply it:
 
-**Why a script instead of the page fetching this live, on every visit:** BNI's
-server doesn't send CORS headers, so a visitor's browser is blocked from
-reading that data directly from a script running on your own domain — that's
-a restriction on BNI's end, not something client-side code can work around.
-Running the fetch here, from your machine, sidesteps it, since CORS only
-restricts browsers, not scripts you run yourself. The tradeoff is that "live"
-becomes "re-run this when something changes" instead of "always current" —
-appropriate for a roster that changes rarely, and it means the public site
-never breaks just because BNI's page is slow or down.
+- **New on BNI** → added. Chapter members start `enabled: true`;
+  leadership-only people start `enabled: false`.
+- **Already in the database** → only empty fields are filled in. Where BNI
+  has a different value, yours is kept and the difference is reported; add
+  `--update` to take BNI's values instead.
+- **No longer on BNI** → reported only. Set `"enabled": false` if they've
+  left the chapter.
+- **Leadership roles** → replaced with BNI's current list.
 
-### When BNI doesn't have something (e.g., no company link on file)
-
-`sync-bni.py` only pulls what BNI publishes. When a member has no company
-website on file, their name shows as **plain, unlinked text** instead of a
-broken or guessed link — same idea for photos (falls back to BNI's default
-silhouette) and for anything BNI simply doesn't expose at all, like email
-addresses.
-
-To fill in what's missing, or correct something, add it to
-**`data/overrides.js`** instead of editing `members-auto.js` directly —
-anything in `members-auto.js` gets overwritten the next time you run the
-sync script, but `overrides.js` is untouched by it and always wins:
-
-```js
-window.SITE_OVERRIDES = {
-  members: {
-    "Christopher Mingace": { companyUrl: "https://www.hbmhlaw.com" }
-  },
-  leadership: {
-    "Ian McCarthy": { companyUrl: "https://www.unitedhomeexperts.com" }
-  }
-};
-```
-
-Key each entry by the person's name exactly as it appears in
-`members-auto.js`. Only include the fields you want to change — everything
-else keeps whatever the sync fetched. Full explanation and more examples are
-in the comment block at the top of `data/overrides.js`.
+**Why a script instead of the page fetching BNI live:** BNI's server doesn't
+send CORS headers, so a visitor's browser is blocked from reading that data
+from a page on your own domain. Running the fetch here, from your machine,
+sidesteps that, since CORS only restricts browsers. It also means the public
+site never breaks just because BNI's page is slow or down.
 
 ## Running it locally
 
@@ -115,11 +133,11 @@ but a few external things it depends on:
   chapter page itself calls — not a stable public API, so if BNI redesigns
   that page, this script may need its parsing patterns updated. It'll tell
   you clearly (and not overwrite existing data) if it parses zero members.
-- **BNI Connect member photos** — hot-linked directly from
-  `bniconnectglobal.com` instead of being downloaded and stored in this repo.
-  When a member updates their headshot in BNI Connect, it updates here too,
-  next sync. No key or account needed — it's a public image URL — but if BNI
-  ever blocks hotlinking, those photos would break.
+- **BNI Connect member photos** — by default hot-linked directly from
+  `bniconnectglobal.com` (`bniPhoto`). When a member updates their headshot
+  in BNI Connect, it updates here too, next sync. If BNI ever blocks
+  hotlinking, those photos would break; a photo stored in `img/members/`
+  (`photo`) doesn't depend on BNI.
 - **Google Maps** — the "View on Google Maps" button is a plain link
   (`goo.gl/maps/...`), not an embedded map, so no Google Maps API key is
   needed.
@@ -144,10 +162,9 @@ matching the name against the member directory. If a speaker is a visitor
 rather than a chapter member, add `photo` / `companyUrl` directly on that
 entry and they'll be used as-is instead of an auto lookup.
 
-Member and leadership roster changes (new member, title change, updated
-photo) aren't edited by hand — run `python3 scripts/sync-bni.py` to pull the
-latest from BNI, or add an entry to `data/overrides.js` for anything BNI
-doesn't have on file. See "Where the member/leadership data comes from" above.
+Member and leadership changes (new member, title change, updated photo)
+come from running `python3 scripts/sync-bni.py`; anything BNI doesn't have
+goes straight into `data/members.js`. See "The member database" above.
 
 ## Images
 
@@ -178,12 +195,3 @@ away, add any query string, e.g.
 
 Re-run `python3 scripts/sync-bni.py` locally before a deploy if you want the
 roster refreshed; the script doesn't run on the host.
-
-## A note on the seed data
-
-The member/leadership data in `data/members-auto.js` and the This Week
-content in `data/site-data.js` were pulled from the chapter's public BNI page
-and this week's meeting recap email as a starting point, so the site isn't
-empty on first run. Double-check it before publishing — especially anyone
-whose photo is still the default silhouette or whose company shows as
-unlinked text — and add anything missing to `data/overrides.js`.

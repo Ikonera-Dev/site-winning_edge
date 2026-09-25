@@ -1,16 +1,30 @@
 #!/usr/bin/env python3
 """
-Pulls the current member + leadership roster from the chapter's public BNI
-page and regenerates data/members-auto.js.
+Checks the chapter's public BNI page against the member database
+(data/members.js) and brings the database up to date:
 
-Run this whenever the roster changes (new member, someone updates their BNI
-Connect photo, a title changes hands, etc):
+    python3 scripts/sync-bni.py             # apply changes
+    python3 scripts/sync-bni.py --dry-run   # only report, write nothing
+    python3 scripts/sync-bni.py --update    # also let BNI overwrite fields
+                                            # that differ from the database
 
-    python scripts/sync-bni.py
+For every person found on BNI (the member table and the leadership cards):
+  - NOT in the database yet -> a new record is added with everything BNI
+    has on them. Chapter members are added with "enabled": true, people who
+    only appear in leadership (e.g. the Director Consultant) with false.
+  - ALREADY in the database  -> fields that are empty in the database are
+    filled in from BNI. Fields that already have a value are never changed
+    (so your hand edits are safe); if BNI's value differs, it's reported.
+    Pass --update to accept BNI's values for those instead.
+    The exception is the fields starting with "bni" (bniPhoto,
+    bniProfileUrl, bniMessageUrl): they mirror BNI and are always refreshed.
+People are matched by their BNI member ID, falling back to an exact name
+match. Anyone in the database who's enabled but no longer on BNI is
+reported, not removed or disabled; set "enabled": false yourself if they've
+left the chapter.
 
-This only touches data/members-auto.js. Anything you've entered by hand in
-data/overrides.js is untouched and always wins over what's fetched here — so
-re-running this is always safe.
+The leadership list (who holds which role) is replaced with BNI's current
+one on every run, since terms change and BNI is the source of truth for it.
 
 Why a script instead of the page fetching this itself: BNI's server doesn't
 send CORS headers, so a browser on your own domain is blocked from reading
@@ -19,6 +33,7 @@ around from client-side JS). Running the fetch here, server-side, sidesteps
 that — there's no CORS restriction on a script you run yourself.
 """
 
+import argparse
 import json
 import re
 import sys
@@ -39,9 +54,57 @@ CHAPTER_ID = "uYMfymrQf2BYSn2giIGAwg=="   # decoded chapterId query param
 WEBSITE_TYPE = "2"
 WEBSITE_ID = "27402"
 
-OUTPUT_PATH = Path(__file__).resolve().parent.parent / "data" / "members-auto.js"
+DB_PATH = Path(__file__).resolve().parent.parent / "data" / "members.js"
+DB_PREFIX = "window.MEMBERS_DB = "
 
+DB_HEADER = """/**
+ * ============================================================================
+ *  MEMBER DATABASE: one record per person, plus who holds which leadership
+ *  role. Loaded by index.html, rendered by js/app.js.
+ * ============================================================================
+ *  Safe to edit by hand, but keep it valid JSON after the `=` sign: double
+ *  quotes, no trailing commas, no comments inside. scripts/sync-bni.py reads
+ *  and rewrites this file and will stop with an error if it can't parse it.
+ *
+ *  Each person is addressed by "id" (their BNI member id). Fields:
+ *    enabled       true = shown in the Members grid, false = hidden
+ *    name          display name; firstName / lastName are split from it
+ *    company, companyUrl, category (categoryPath = BNI's full category)
+ *    phone, email  email is never on BNI, add it by hand
+ *    photo         the image the site shows. Leave "" to use bniPhoto.
+ *                  Your own image: put the file in img/members/ and set
+ *                  e.g. "photo": "img/members/adam-bortolussi.jpg"
+ *    bniPhoto, bniProfileUrl, bniMessageUrl
+ *                  mirror BNI; refreshed on every sync, don't edit
+ *
+ *  leadership: sections of { id, titles }, replaced from BNI on every sync.
+ *
+ *  Refresh from BNI:  python3 scripts/sync-bni.py   (--dry-run to preview)
+ * ============================================================================
+ */
+"""
+
+# BNI's "no photo" silhouette. Stored in the database as "" (no photo); the
+# site shows this same image for anyone without one.
 DEFAULT_PHOTO = "https://bniconnectglobal.com/web/images/default_profile.gif"
+
+# Field order of a person record in members.js. `email` is never on BNI
+# and is only ever filled in by hand.
+RECORD_FIELDS = [
+    "id", "enabled", "name", "firstName", "lastName",
+    "company", "companyUrl", "category", "categoryPath",
+    "phone", "email", "photo", "bniPhoto", "bniProfileUrl", "bniMessageUrl",
+]
+
+# Fields the sync fills in from BNI when they're empty. `enabled`, `email`
+# and `photo` are never touched.
+BNI_FIELDS = [
+    "name", "firstName", "lastName", "company", "companyUrl", "category",
+    "categoryPath", "phone",
+]
+
+# Fields that mirror BNI and are overwritten on every sync.
+MIRROR_FIELDS = ["bniPhoto", "bniProfileUrl", "bniMessageUrl"]
 
 
 def fetch_chapter_html():
@@ -71,6 +134,26 @@ def fetch_chapter_html():
 
 def strip_tags(html):
     return re.sub(r"<[^>]+>", "", html).strip()
+
+
+def split_name(name):
+    # "Christopher Orrick" -> ("Christopher", "Orrick"). BNI only publishes
+    # the full name, so this is a best guess; correct it by hand if needed.
+    parts = name.split(" ", 1)
+    return parts[0], (parts[1] if len(parts) > 1 else "")
+
+
+def profile_url(member_id, name):
+    if not member_id:
+        return ""
+    return (f"{BASE_URL}/en-US/memberdetails?encryptedMemberId="
+            f"{urllib.parse.quote(member_id, safe='')}&name={urllib.parse.quote_plus(name)}")
+
+
+def message_url(user_id_quoted, name):
+    if not user_id_quoted:
+        return ""
+    return f"{BASE_URL}/en-US/sendmessage?userId={user_id_quoted}&userName={urllib.parse.quote_plus(name)}"
 
 
 def parse_leadership(html):
@@ -103,6 +186,7 @@ def parse_leadership(html):
             photo_m = re.search(r'<img src="([^"]*)"\s+alt="default">', card)
             phone_m = re.search(r'href="tel:([^"]*)"', card)
             member_m = re.search(r"encryptedMemberId=([^&\"]*)&(?:amp;)?name=", card)
+            user_m = re.search(r"sendmessage\?userId=([^&\"]*)&", card)
 
             company_link_m = re.search(
                 r'<p class="company_name"><a\s+href="([^"]*)"\s+target="_blank"\s+title="([^"]*)">',
@@ -130,6 +214,7 @@ def parse_leadership(html):
                 "phone": phone_m.group(1).strip() if phone_m else "",
                 "photo": photo_m.group(1).strip() if photo_m else DEFAULT_PHOTO,
                 "memberId": urllib.parse.unquote(member_m.group(1)) if member_m else "",
+                "userId": user_m.group(1) if user_m else "",
             })
 
         if people:
@@ -190,109 +275,220 @@ def parse_members(html):
 
         name_m = re.search(r'class="linkone">([^<]*)</a>', tds[0])
         member_m = re.search(r"encryptedMemberId=([^&]*)&(?:amp;)?cmsv3", tds[0])
+        user_m = re.search(r"sendmessage\?userId=([^&\"]*)&", row)
         if not name_m:
             continue
 
+        # BNI shows the category as a path: "Consulting > Business
+        # Consultant - Small Business > Business Consultant - Small
+        # Business". The last step is what the site displays.
         category_raw = strip_tags(tds[2]) if len(tds) > 2 else ""
-        category = category_raw.split(">")[-1].strip() if category_raw else ""
+        category_raw = re.sub(r"\s*&gt;\s*|\s*>\s*", " > ", category_raw).strip()
+        category = category_raw.split(" > ")[-1].strip() if category_raw else ""
 
         members.append({
             "name": name_m.group(1).strip(),
             "company": strip_tags(tds[1]).strip() if len(tds) > 1 else "",
             "category": category,
+            "categoryPath": category_raw,
             "phone": strip_tags(tds[3]).strip() if len(tds) > 3 else "",
             "companyUrl": "",
             "photo": DEFAULT_PHOTO,
             "memberId": urllib.parse.unquote(member_m.group(1)) if member_m else "",
+            "userId": user_m.group(1) if user_m else "",
         })
 
     return members
 
 
-def enrich_members_from_leadership(members, leadership_sections):
-    # The member table has no photos/company links; the leadership cards do.
-    # Where a person appears in both, borrow the richer leadership fields.
-    lookup = {}
+def to_record(person, enabled):
+    """Turns a parsed BNI person into a members.js record."""
+    first, last = split_name(person["name"])
+    photo = person.get("photo", "")
+    return {
+        "id": person["memberId"] or f"name:{person['name']}",
+        "enabled": enabled,
+        "name": person["name"],
+        "firstName": first,
+        "lastName": last,
+        "company": person.get("company", ""),
+        "companyUrl": person.get("companyUrl", ""),
+        "category": person.get("category", ""),
+        "categoryPath": person.get("categoryPath", ""),
+        "phone": person.get("phone", ""),
+        "email": "",
+        "photo": "",
+        "bniPhoto": "" if photo == DEFAULT_PHOTO else photo,
+        "bniProfileUrl": profile_url(person["memberId"], person["name"]),
+        "bniMessageUrl": message_url(person.get("userId", ""), person["name"]),
+    }
+
+
+def found_on_bni(members, leadership_sections):
+    """Everyone on BNI's page as records, keyed by id. Chapter members first,
+    then leadership-only people. Where someone is in both, the leadership
+    card fills in what the member table lacks (photo, company link)."""
+    found = {}
+    for m in members:
+        rec = to_record(m, enabled=True)
+        found[rec["id"]] = rec
+
+    by_name = {rec["name"]: rec for rec in found.values()}
     for section in leadership_sections:
-        for person in section["people"]:
-            lookup[person["name"]] = person
+        for p in section["people"]:
+            leader = to_record(p, enabled=False)
+            existing = found.get(leader["id"]) or by_name.get(leader["name"])
+            if existing:
+                for field in BNI_FIELDS + MIRROR_FIELDS:
+                    if not existing[field] and leader[field]:
+                        existing[field] = leader[field]
+                p["id"] = existing["id"]
+            else:
+                found[leader["id"]] = leader
+                by_name[leader["name"]] = leader
+                p["id"] = leader["id"]
+    return found
 
-    for member in members:
-        extra = lookup.get(member["name"])
-        if not extra:
+
+def load_db():
+    if not DB_PATH.exists():
+        return {"lastSynced": "", "people": [], "leadership": []}
+    text = DB_PATH.read_text(encoding="utf-8")
+    if DB_PREFIX not in text:
+        print(f"ERROR: {DB_PATH.name} should contain `{DB_PREFIX}{{...}};`. "
+              "Nothing was changed.", file=sys.stderr)
+        sys.exit(1)
+    body = text.split(DB_PREFIX, 1)[1].strip().rstrip(";")
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: {DB_PATH.name} isn't valid JSON (line {e.lineno}, column "
+              f"{e.colno}: {e.msg}). Fix that first; nothing was changed.", file=sys.stderr)
+        sys.exit(1)
+
+
+def sync(db, found, update):
+    """Merges BNI's people into db["people"]. Returns a list of report lines."""
+    people = db["people"]
+    by_id = {p.get("id"): p for p in people}
+    by_name = {p.get("name", "").lower(): p for p in people}
+    report = {"added": [], "filled": [], "updated": [], "differs": [], "refreshed": [],
+              "missing": [], "disabled": []}
+
+    for rec in found.values():
+        existing = by_id.get(rec["id"]) or by_name.get(rec["name"].lower())
+        if not existing:
+            people.append(rec)
+            report["added"].append(f"{rec['name']} ({'enabled' if rec['enabled'] else 'disabled, leadership only'})")
             continue
-        if extra["photo"] and extra["photo"] != DEFAULT_PHOTO:
-            member["photo"] = extra["photo"]
-        if extra["companyUrl"]:
-            member["companyUrl"] = extra["companyUrl"]
 
-    return members
+        # Records added by hand might not have every field yet.
+        for field in RECORD_FIELDS:
+            existing.setdefault(field, "" if field != "enabled" else True)
+        if existing["id"] != rec["id"] and existing["id"].startswith("name:"):
+            existing["id"] = rec["id"]
+
+        for field in BNI_FIELDS:
+            ours, theirs = existing[field], rec[field]
+            if not theirs or ours == theirs:
+                continue
+            if not ours:
+                existing[field] = theirs
+                report["filled"].append(f"{existing['name']}: {field} = {theirs}")
+            elif update:
+                existing[field] = theirs
+                report["updated"].append(f"{existing['name']}: {field} {ours!r} -> {theirs!r}")
+            else:
+                report["differs"].append(f"{existing['name']}: {field} is {ours!r}, BNI has {theirs!r}")
+
+        for field in MIRROR_FIELDS:
+            if existing[field] != rec[field]:
+                report["refreshed"].append(f"{existing['name']}: {field}")
+                existing[field] = rec[field]
+
+        if rec["enabled"] and not existing["enabled"]:
+            report["disabled"].append(existing["name"])
+
+    found_ids = set(found)
+    for p in people:
+        if p["enabled"] and p["id"] not in found_ids:
+            report["missing"].append(p["name"])
+
+    return report
 
 
-def to_js(value, indent=0):
-    pad = "  " * indent
-    pad_in = "  " * (indent + 1)
-
-    if isinstance(value, dict):
-        if not value:
-            return "{}"
-        lines = ["{"]
-        for k, v in value.items():
-            lines.append(f'{pad_in}{json.dumps(k)}: {to_js(v, indent + 1)},')
-        lines.append(pad + "}")
-        return "\n".join(lines)
-
-    if isinstance(value, list):
-        if not value:
-            return "[]"
-        lines = ["["]
-        for item in value:
-            lines.append(f"{pad_in}{to_js(item, indent + 1)},")
-        lines.append(pad + "]")
-        return "\n".join(lines)
-
-    return json.dumps(value)
+def print_report(report, update):
+    labels = [
+        ("added", "New, added to the database"),
+        ("filled", "Empty fields filled in from BNI"),
+        ("updated", "Changed to BNI's value (--update)"),
+        ("differs", "Different on BNI, kept yours (re-run with --update to take BNI's)"),
+        ("refreshed", "BNI photo/links refreshed"),
+        ("missing", "Enabled but no longer on BNI (set \"enabled\": false if they left)"),
+        ("disabled", "On BNI's member list but disabled in the database"),
+    ]
+    any_output = False
+    for key, label in labels:
+        if report[key]:
+            any_output = True
+            print(f"\n{label}:")
+            for line in report[key]:
+                print(f"  - {line}")
+    if not any_output:
+        print("\nEveryone on BNI is already in the database and up to date.")
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--dry-run", action="store_true", help="report only, don't write members.js")
+    parser.add_argument("--update", action="store_true", help="overwrite fields that differ from BNI")
+    args = parser.parse_args()
+
+    db = load_db()
+
     print(f"Fetching chapter data from {BASE_URL}{ENDPOINT} ...")
     html = fetch_chapter_html()
 
     leadership = parse_leadership(html)
     members = parse_members(html)
-    members = enrich_members_from_leadership(members, leadership)
 
     if not members:
         print("ERROR: parsed zero members — BNI likely changed their page "
               "structure and the regexes in this script need updating. "
-              "Not overwriting members-auto.js.", file=sys.stderr)
+              "Not changing members.js.", file=sys.stderr)
         sys.exit(1)
 
     leadership_count = sum(len(s["people"]) for s in leadership)
     print(f"Parsed {len(members)} members and {leadership_count} leadership "
           f"entries across {len(leadership)} section(s).")
 
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    found = found_on_bni(members, leadership)
+    report = sync(db, found, args.update)
+    print_report(report, args.update)
 
-    output = f"""/**
- * AUTO-GENERATED by scripts/sync-bni.py — do not hand-edit.
- * Last synced: {generated_at}
- *
- * To refresh: python scripts/sync-bni.py
- * To fix/add something this doesn't have (a missing company link, a
- * corrected photo, an email address), do NOT edit this file — put it in
- * data/overrides.js instead. Overrides always win and survive re-syncs.
- */
+    if leadership:
+        db["leadership"] = [
+            {"section": s["section"],
+             "members": [{"id": p["id"], "titles": p["titles"]} for p in s["people"]]}
+            for s in leadership
+        ]
 
-window.BNI_AUTO = {{
-  generatedAt: {json.dumps(generated_at)},
-  members: {to_js(members, 1)},
-  leadership: {to_js(leadership, 1)}
-}};
-"""
+    db["people"] = sorted(
+        ({f: p.get(f, "") for f in RECORD_FIELDS} | p for p in db["people"]),
+        key=lambda p: p["name"].lower(),
+    )
+    db["lastSynced"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    output = {"lastSynced": db["lastSynced"], "people": db["people"], "leadership": db["leadership"]}
 
-    OUTPUT_PATH.write_text(output, encoding="utf-8")
-    print(f"Wrote {OUTPUT_PATH}")
+    if args.dry_run:
+        print("\n--dry-run: nothing written.")
+        return
+
+    DB_PATH.write_text(
+        DB_HEADER + "\n" + DB_PREFIX + json.dumps(output, indent=2, ensure_ascii=False) + ";\n",
+        encoding="utf-8",
+    )
+    print(f"\nWrote {DB_PATH}")
 
 
 if __name__ == "__main__":
