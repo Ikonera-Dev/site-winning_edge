@@ -58,7 +58,8 @@ their BNI member `id`:
 
 - **`enabled`** decides whether the person appears in the Members grid.
 - **`trophyWinner`**: set `true` on this week's winner (and `false` on last
-  week's). The This Week trophy card shows whoever is flagged. The
+  week's). There's one winner: if more are flagged, the site shows the
+  first alphabetically and the sync reports it. The
   congratulations line is `trophyNote` in `data/site-data.js`.
 - **`roles`**: the leadership roles someone holds, e.g. `["President"]`.
   The Chapter Leadership tab lists everyone with at least one role,
@@ -86,7 +87,11 @@ The `roles` list at the top of `data/members.js` defines every role:
 - **`section`** is the heading the role is listed under in Chapter
   Leadership. Sections appear in the order of their first role; within a
   section, people are ordered by their highest-listed role, then by name.
-- **`max`** is how many people can hold the role (`null` = no limit).
+- **`max`** is how many people can hold the role (`null` = no limit),
+  counting its sub-roles: "Membership Committee - Member Relations" counts
+  toward "Membership Committee", so a cap of 3 means three committee
+  members in total. Caps today: President, Vice President and Secretary /
+  Treasurer 1 each; Visitor Host 3; Membership Committee 3.
   Every sync runs a **role cap check**: a capped role must be held by 1 to
   `max` people. When it fails (too many holders, or nobody), the live BNI
   page decides. If BNI lists a valid set of holders, the database is set to

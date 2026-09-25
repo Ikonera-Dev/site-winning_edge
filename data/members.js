@@ -10,8 +10,10 @@
  *  roles: every leadership role, in display order. Each has:
  *    role          the title, exactly as used in people's "roles"
  *    section       the Chapter Leadership heading it's listed under
- *    max           how many people may hold it (null = no limit). The sync
- *                  checks it against live BNI; the site never shows more.
+ *    max           how many people may hold it (null = no limit), counting
+ *                  its sub-roles ("Membership Committee - ..." count toward
+ *                  "Membership Committee"). The sync checks it against live
+ *                  BNI; the site never shows more.
  *    bniHolders    ids BNI lists for the role; refreshed every sync
  *  Sections appear in the order of their first role; people within a
  *  section are ordered by their highest-listed role, then by name.
@@ -20,7 +22,7 @@
  *    enabled       true = shown in the Members grid, false = hidden
  *                  (Leadership shows everyone who has a role, enabled or
  *                  not, so the Regional Support Team stays leadership-only)
- *    trophyWinner  true = shown as This Week's trophy winner
+ *    trophyWinner  true = shown as This Week's trophy winner (one person)
  *    roles         leadership roles held, e.g. ["President"]; [] = none
  *    name          display name; firstName / lastName are split from it
  *    company, companyUrl, category (categoryPath = BNI's full category)
@@ -36,7 +38,7 @@
  */
 
 window.MEMBERS_DB = {
-  "lastSynced": "2026-09-25 02:08 UTC",
+  "lastSynced": "2026-09-25 03:16 UTC",
   "roles": [
     {
       "role": "President",
@@ -65,7 +67,7 @@ window.MEMBERS_DB = {
     {
       "role": "Visitor Host",
       "section": "Visitor Host",
-      "max": null,
+      "max": 3,
       "bniHolders": [
         "kW4lRZHMcM0DS7u84pfh9A==",
         "+1w2thLr4Ve16fl9Ctp2xw==",
@@ -75,7 +77,7 @@ window.MEMBERS_DB = {
     {
       "role": "Membership Committee",
       "section": "Membership Committee",
-      "max": null,
+      "max": 3,
       "bniHolders": [
         "YZ9ufZ4p9c9OWBnIOdnZcA=="
       ]

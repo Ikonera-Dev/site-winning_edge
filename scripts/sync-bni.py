@@ -80,8 +80,10 @@ DB_HEADER = """/**
  *  roles: every leadership role, in display order. Each has:
  *    role          the title, exactly as used in people's "roles"
  *    section       the Chapter Leadership heading it's listed under
- *    max           how many people may hold it (null = no limit). The sync
- *                  checks it against live BNI; the site never shows more.
+ *    max           how many people may hold it (null = no limit), counting
+ *                  its sub-roles ("Membership Committee - ..." count toward
+ *                  "Membership Committee"). The sync checks it against live
+ *                  BNI; the site never shows more.
  *    bniHolders    ids BNI lists for the role; refreshed every sync
  *  Sections appear in the order of their first role; people within a
  *  section are ordered by their highest-listed role, then by name.
@@ -90,7 +92,7 @@ DB_HEADER = """/**
  *    enabled       true = shown in the Members grid, false = hidden
  *                  (Leadership shows everyone who has a role, enabled or
  *                  not, so the Regional Support Team stays leadership-only)
- *    trophyWinner  true = shown as This Week's trophy winner
+ *    trophyWinner  true = shown as This Week's trophy winner (one person)
  *    roles         leadership roles held, e.g. ["President"]; [] = none
  *    name          display name; firstName / lastName are split from it
  *    company, companyUrl, category (categoryPath = BNI's full category)
@@ -128,6 +130,9 @@ BNI_FIELDS = [
     "name", "firstName", "lastName", "company", "companyUrl", "category",
     "categoryPath", "phone",
 ]
+
+# How many people may be flagged "trophyWinner": true (js/app.js matches).
+TROPHY_MAX = 1
 
 # Fields that mirror BNI and are overwritten on every sync.
 MIRROR_FIELDS = ["bniPhoto", "bniProfileUrl", "bniMessageUrl"]
@@ -479,9 +484,17 @@ def record_bni_holders(db, leadership_sections):
     ]
 
 
+def role_family(db, role):
+    """A capped role counts together with its sub-roles: "Membership
+    Committee" covers "Membership Committee - Member Relations" too, since
+    BNI gives some committee members only the sub-role."""
+    return [r for r in db["roles"] if r["role"] == role or r["role"].startswith(role + " - ")]
+
+
 def check_caps(db, report):
-    """Every role with a max must be held by 1..max people. Failures are set
-    to BNI's holders when BNI's list is itself valid, else reported."""
+    """Every role with a max must be held by 1..max people (counting its
+    sub-roles). Failures are set to BNI's holders when BNI's list is itself
+    valid, else reported."""
     by_id = {p["id"]: p for p in db["people"]}
     names = lambda people: ", ".join(p["name"] for p in people) or "nobody"
     checked = 0
@@ -491,27 +504,44 @@ def check_caps(db, report):
         if cap is None:
             continue
         checked += 1
-        holders = [p for p in db["people"] if role in p["roles"]]
+        family = role_family(db, role)
+        family_names = {f["role"] for f in family}
+        label = role + (" (incl. sub-roles)" if len(family) > 1 else "")
+        holders = [p for p in db["people"] if family_names & set(p["roles"])]
         if 1 <= len(holders) <= cap:
             continue
 
         problem = (f"{len(holders)} people hold it, max is {cap} ({names(holders)})"
                    if holders else "nobody holds it")
-        bni = [by_id[i] for i in r["bniHolders"] if i in by_id]
-        if 1 <= len(bni) <= cap and len(bni) == len(r["bniHolders"]):
+        bni_ids = []
+        for f in family:
+            bni_ids += [i for i in f["bniHolders"] if i not in bni_ids]
+        bni = [by_id[i] for i in bni_ids if i in by_id]
+        if 1 <= len(bni) <= cap and len(bni) == len(bni_ids):
             for p in holders:
                 if p not in bni:
-                    p["roles"].remove(role)
+                    p["roles"] = [x for x in p["roles"] if x not in family_names]
             for p in bni:
-                if role not in p["roles"]:
-                    p["roles"].append(role)
-            report["capFixed"].append(f"{role}: {problem}. Set to BNI's: {names(bni)}")
+                for f in family:
+                    if p["id"] in f["bniHolders"] and f["role"] not in p["roles"]:
+                        p["roles"].append(f["role"])
+            report["capFixed"].append(f"{label}: {problem}. Set to BNI's: {names(bni)}")
         else:
             report["capUnresolved"].append(
-                f"{role}: {problem}. BNI lists {len(r['bniHolders'])} "
+                f"{label}: {problem}. BNI lists {len(bni_ids)} "
                 f"({names(bni)}), so it can't decide. Fix by hand.")
 
     report["capChecked"] = checked
+
+    # There is one trophy winner. BNI doesn't publish it, so this can only
+    # be reported, not fixed from BNI.
+    winners = [p for p in db["people"] if p.get("trophyWinner")]
+    if len(winners) > TROPHY_MAX:
+        report["capUnresolved"].append(
+            f"Trophy winner: {len(winners)} people flagged ({names(winners)}), max is "
+            f"{TROPHY_MAX}. Set \"trophyWinner\": false on all but this week's winner.")
+    elif not winners:
+        report["capUnresolved"].append("Trophy winner: nobody is flagged this week.")
 
     for person, theirs in report["roleDiffs"]:
         if set(person["roles"]) != set(theirs):
@@ -529,7 +559,7 @@ def print_report(report, update):
         ("disabled", "On BNI's member list but disabled in the database"),
         ("newRoles", "New roles added to the roles table (set \"max\" if it has a cap)"),
         ("capFixed", "Role cap check failed, fixed from live BNI"),
-        ("capUnresolved", "Role cap check failed, BNI can't resolve it"),
+        ("capUnresolved", "Cap check failed, fix by hand"),
     ]
     any_output = False
     for key, label in labels:
@@ -541,7 +571,7 @@ def print_report(report, update):
     if not any_output:
         print("\nEveryone on BNI is already in the database and up to date.")
     if not report["capFixed"] and not report["capUnresolved"]:
-        print(f"\nRole cap check: all {report['capChecked']} capped role(s) OK.")
+        print(f"\nRole cap check: all {report['capChecked']} capped role(s) and the trophy winner OK.")
 
 
 def main():

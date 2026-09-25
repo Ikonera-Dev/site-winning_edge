@@ -33,7 +33,7 @@ Static one-page chapter site (plain HTML/CSS/JS, no build step, no backend).
 - Ask before pushing changes that alter behavior or layout. Content updates the user dictates can be pushed directly.
 
 ## Open items / known issues
-- Role caps are enforced: the sync's cap check resolves over-cap/empty capped roles from live BNI (`bniHolders`), else reports "fix by hand"; the site shows at most `max`, preferring `bniHolders`. Only President / Vice President / Secretary / Treasurer have caps (1); the user hasn't given Visitor Host's cap yet. The single trophy winner is NOT enforced (all flagged winners render).
+- Role caps are enforced: the sync's cap check resolves over-cap/empty capped roles from live BNI (`bniHolders`), else reports "fix by hand"; the site shows at most `max`, preferring `bniHolders`. Caps count sub-roles ("X - Y" counts toward "X"). Caps: President / Vice President / Secretary / Treasurer 1, Visitor Host 3, Membership Committee 3. Trophy winner max 1: site shows the first alphabetical, sync reports extras or none (can't fix from BNI).
 - Not approved yet: having the sync download BNI photos into `img/members/`. BNI's member profile page (memberdetails) returns no data, so the chapter page is the only BNI source.
 - Declined for now: `?v=` version numbers on the asset links in `index.html`.
 - The header logo is still hot-linked from an email CDN (`fcebsch.stripocdn.email`). The user will supply their own logo, favicon and share images into `img/`.

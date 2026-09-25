@@ -56,18 +56,23 @@
   const roleSection = {};
   db.roles.forEach((r, i) => { roleOrder[r.role] = i; roleSection[r.role] = r.section; });
 
-  // A role with a `max` is shown on at most that many people. If the file
-  // has more (the sync script normally fixes this from live BNI), the ones
-  // BNI listed at the last sync (`bniHolders`) win, then alphabetical.
+  // A role with a `max` is shown on at most that many people, counting its
+  // sub-roles ("Membership Committee - ..." count toward "Membership
+  // Committee"). If the file has more (the sync script normally fixes this
+  // from live BNI), the ones BNI listed at the last sync (`bniHolders`)
+  // win, then alphabetical; the rest have the whole role family hidden.
   const hiddenRoles = new Set(); // "personId|role" pairs over the cap
   db.roles.forEach((r) => {
     if (r.max === null || r.max === undefined) return;
-    const bniRank = (p) => { const i = (r.bniHolders || []).indexOf(p.id); return i < 0 ? Infinity : i; };
-    const holders = people.filter((p) => (p.roles || []).includes(r.role))
+    const family = db.roles.filter((f) => f.role === r.role || f.role.startsWith(r.role + " - "));
+    const familyNames = family.map((f) => f.role);
+    const bniIds = family.flatMap((f) => f.bniHolders || []);
+    const bniRank = (p) => { const i = bniIds.indexOf(p.id); return i < 0 ? Infinity : i; };
+    const holders = people.filter((p) => (p.roles || []).some((x) => familyNames.includes(x)))
       .sort((a, b) => bniRank(a) - bniRank(b) || a.name.localeCompare(b.name));
     if (holders.length <= r.max) return;
     const extra = holders.slice(r.max);
-    extra.forEach((p) => hiddenRoles.add(`${p.id}|${r.role}`));
+    extra.forEach((p) => familyNames.forEach((x) => hiddenRoles.add(`${p.id}|${x}`)));
     console.warn(`"${r.role}" allows ${r.max}, ${holders.length} have it. Not showing it for: ${extra.map((p) => p.name).join(", ")}. Run scripts/sync-bni.py to fix.`);
   });
 
@@ -164,8 +169,16 @@
   $("#this-week-date").textContent = `Meeting of ${siteData.thisWeek.meetingDateLabel}`;
 
   // The trophy winner is whoever has "trophyWinner": true in data/members.js.
-  // Everyone flagged is shown; the note comes from site-data.js.
-  const trophyWinners = people.filter((p) => p.trophyWinner);
+  // The note comes from site-data.js.
+  // One trophy winner. If more are flagged, the first (alphabetical) is
+  // shown and the rest are named in a console warning.
+  const TROPHY_MAX = 1;
+  const flagged = people.filter((p) => p.trophyWinner)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const trophyWinners = flagged.slice(0, TROPHY_MAX);
+  if (flagged.length > TROPHY_MAX) {
+    console.warn(`${flagged.length} trophy winners flagged in data/members.js; showing ${trophyWinners[0].name}. Not showing: ${flagged.slice(TROPHY_MAX).map((p) => p.name).join(", ")}.`);
+  }
   const trophyNote = siteData.thisWeek.trophyNote;
   $("#trophy-winner").innerHTML = trophyWinners.length
     ? trophyWinners.map((tw) => `
