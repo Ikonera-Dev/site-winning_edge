@@ -10,7 +10,7 @@ Static one-page chapter site (plain HTML/CSS/JS, no build step, no backend).
 
 ## Files
 - `data/site-data.js`: This Week (date, trophy winner, quote + `quoteAuthor`, speakers, PALMS metrics) and the speaker `rotation`. Edited by hand every week.
-- `data/members.js`: the member database. One record per person keyed by BNI member `id` (stable across syncs), with `enabled` (Members grid visibility), contact fields, `photo` (chosen image; "" falls back to `bniPhoto`), plus a `leadership` list of `{id, titles}`. Valid JSON after `window.MEMBERS_DB = `. `scripts/sync-bni.py` adds new people and fills empty fields, never overwrites filled ones (except `bni*` mirror fields and leadership), reports differences; `--dry-run`, `--update`.
+- `data/members.js`: the member database. One record per person keyed by BNI member `id` (stable across syncs), with `enabled` (Members grid visibility), `trophyWinner` (This Week trophy card), `roles` (Chapter Leadership, shown regardless of `enabled`), contact fields, `photo` (chosen image; "" falls back to `bniPhoto`), plus a top-level `roles` table of `{role, section, max}` that sets section/order and caps. Valid JSON after `window.MEMBERS_DB = `. `scripts/sync-bni.py` adds new people and fills empty fields, never overwrites filled ones (except `bni*` mirror fields); never touches enabled/trophyWinner/email/photo, reports differences; `--dry-run`, `--update`.
 - `img/members/`: member photos referenced by `photo` (see its README).
 - `js/app.js` renders the data files; `css/styles.css` holds the theme; `img/` holds site images (spec in `img/README.md`).
 - `CNAME` = `bniwinningedge.com`. Don't remove it or GitHub drops the custom domain.
@@ -32,6 +32,7 @@ Static one-page chapter site (plain HTML/CSS/JS, no build step, no backend).
 - Ask before pushing changes that alter behavior or layout. Content updates the user dictates can be pushed directly.
 
 ## Open items / known issues
+- Role caps (`max`) and the single trophy winner are NOT enforced: duplicates all render, nothing warns. A failsafe was proposed, not approved.
 - Not approved yet: having the sync download BNI photos into `img/members/`. BNI's member profile page (memberdetails) returns no data, so the chapter page is the only BNI source.
 - Declined for now: `?v=` version numbers on the asset links in `index.html`.
 - The header logo is still hot-linked from an email CDN (`fcebsch.stripocdn.email`). The user will supply their own logo, favicon and share images into `img/`.

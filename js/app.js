@@ -48,16 +48,54 @@
   // The Members grid shows only enabled people.
   const members = people.filter((p) => p.enabled);
 
-  // Leadership roles point at people by id.
-  const leadership = db.leadership.map((section) => ({
-    section: section.section,
-    people: section.members
-      .filter((ref) => byId[ref.id] || console.warn(`Leadership id not in members.js: ${ref.id}`))
-      .map((ref) => ({ ...byId[ref.id], titles: ref.titles })),
+  // Chapter Leadership is built from each person's `roles`. The roles table
+  // gives every role its section and order: sections appear in the order of
+  // their first role, and people within a section by their highest-listed
+  // role, then by name. Everyone with a role is listed, enabled or not.
+  // `max` (the cap per role) is stored but not enforced here.
+  const roleOrder = {};
+  const roleSection = {};
+  db.roles.forEach((r, i) => { roleOrder[r.role] = i; roleSection[r.role] = r.section; });
+
+  const OTHER_SECTION = "Leadership"; // for a role missing from the roles table
+  const sectionOf = (role) => roleSection[role] || OTHER_SECTION;
+  const sectionNames = [...new Set(db.roles.map((r) => r.section))];
+
+  people.forEach((p) => (p.roles || []).forEach((role) => {
+    if (!(role in roleSection)) {
+      console.warn(`"${role}" (${p.name}) isn't in the roles table in data/members.js`);
+      if (!sectionNames.includes(OTHER_SECTION)) sectionNames.push(OTHER_SECTION);
+    }
   }));
 
+  // BNI spells a specialty title as "Membership Committee - Quality
+  // Assurance". When the same person also holds "Membership Committee",
+  // show just "Quality Assurance" rather than repeating the prefix.
+  function displayTitles(roles) {
+    const shown = [];
+    roles.forEach((role) => {
+      const parent = roles.find((other) => role.startsWith(other + " - "));
+      shown.push(parent ? role.slice(parent.length + 3) : role);
+    });
+    return shown;
+  }
+
+  const rank = (role) => (role in roleOrder ? roleOrder[role] : Infinity);
+
+  const leadership = sectionNames.map((section) => ({
+    section,
+    people: people
+      .map((p) => {
+        const roles = (p.roles || []).filter((role) => sectionOf(role) === section)
+          .sort((a, b) => rank(a) - rank(b));
+        return roles.length ? { ...p, titles: displayTitles(roles), rank: rank(roles[0]) } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name)),
+  })).filter((section) => section.people.length);
+
   // A single name -> {photo, companyUrl} lookup, used to auto-fill This
-  // Week's trophy winner / speakers so you only have to type a name there.
+  // Week's speakers so you only have to type a name there.
   const directory = {};
   people.forEach((p) => { directory[p.name] = p; });
 
@@ -110,15 +148,20 @@
 
   $("#this-week-date").textContent = `Meeting of ${siteData.thisWeek.meetingDateLabel}`;
 
-  const tw = resolvePerson(siteData.thisWeek.trophyWinner);
-  $("#trophy-winner").innerHTML = `
-    <img class="avatar" src="${esc(tw.photo)}" alt="${esc(tw.name)}">
-    <div>
-      <p class="person-name">${esc(tw.name)}</p>
-      <p class="person-company">${tw.companyUrl ? `<a href="${esc(tw.companyUrl)}" target="_blank" rel="noopener">${esc(tw.company)}</a>` : esc(tw.company)}</p>
-      ${siteData.thisWeek.trophyWinner.note ? `<p class="person-note">${esc(siteData.thisWeek.trophyWinner.note)}</p>` : ""}
-    </div>
-  `;
+  // The trophy winner is whoever has "trophyWinner": true in data/members.js.
+  // Everyone flagged is shown; the note comes from site-data.js.
+  const trophyWinners = people.filter((p) => p.trophyWinner);
+  const trophyNote = siteData.thisWeek.trophyNote;
+  $("#trophy-winner").innerHTML = trophyWinners.length
+    ? trophyWinners.map((tw) => `
+      <img class="avatar" src="${esc(tw.photo)}" alt="${esc(tw.name)}">
+      <div>
+        <p class="person-name">${esc(tw.name)}</p>
+        <p class="person-company">${companyLine(tw)}</p>
+        ${trophyNote ? `<p class="person-note">${esc(trophyNote)}</p>` : ""}
+      </div>
+    `).join("")
+    : `<p class="muted">No trophy winner selected this week.</p>`;
 
   const quoteEl = $("#quote-of-week");
   quoteEl.textContent = `“${siteData.thisWeek.quoteOfWeek}”`;

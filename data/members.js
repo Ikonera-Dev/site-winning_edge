@@ -1,14 +1,25 @@
 /**
  * ============================================================================
- *  MEMBER DATABASE: one record per person, plus who holds which leadership
- *  role. Loaded by index.html, rendered by js/app.js.
+ *  MEMBER DATABASE: the leadership roles table and one record per person.
+ *  Loaded by index.html, rendered by js/app.js.
  * ============================================================================
  *  Safe to edit by hand, but keep it valid JSON after the `=` sign: double
  *  quotes, no trailing commas, no comments inside. scripts/sync-bni.py reads
  *  and rewrites this file and will stop with an error if it can't parse it.
  *
+ *  roles: every leadership role, in display order. Each has:
+ *    role          the title, exactly as used in people's "roles"
+ *    section       the Chapter Leadership heading it's listed under
+ *    max           how many people may hold it (null = no limit)
+ *  Sections appear in the order of their first role; people within a
+ *  section are ordered by their highest-listed role, then by name.
+ *
  *  Each person is addressed by "id" (their BNI member id). Fields:
  *    enabled       true = shown in the Members grid, false = hidden
+ *                  (Leadership shows everyone who has a role, enabled or
+ *                  not, so the Regional Support Team stays leadership-only)
+ *    trophyWinner  true = shown as This Week's trophy winner
+ *    roles         leadership roles held, e.g. ["President"]; [] = none
  *    name          display name; firstName / lastName are split from it
  *    company, companyUrl, category (categoryPath = BNI's full category)
  *    phone, email  email is never on BNI, add it by hand
@@ -18,18 +29,65 @@
  *    bniPhoto, bniProfileUrl, bniMessageUrl
  *                  mirror BNI; refreshed on every sync, don't edit
  *
- *  leadership: sections of { id, titles }, replaced from BNI on every sync.
- *
  *  Refresh from BNI:  python3 scripts/sync-bni.py   (--dry-run to preview)
  * ============================================================================
  */
 
 window.MEMBERS_DB = {
-  "lastSynced": "2026-09-25 01:49 UTC",
+  "lastSynced": "2026-09-25 01:58 UTC",
+  "roles": [
+    {
+      "role": "President",
+      "section": "Executive Team",
+      "max": 1
+    },
+    {
+      "role": "Vice President",
+      "section": "Executive Team",
+      "max": 1
+    },
+    {
+      "role": "Secretary / Treasurer",
+      "section": "Executive Team",
+      "max": 1
+    },
+    {
+      "role": "Visitor Host",
+      "section": "Visitor Host",
+      "max": null
+    },
+    {
+      "role": "Membership Committee",
+      "section": "Membership Committee",
+      "max": null
+    },
+    {
+      "role": "Membership Committee - Quality Assurance",
+      "section": "Membership Committee",
+      "max": null
+    },
+    {
+      "role": "Membership Committee - Member Relations",
+      "section": "Membership Committee",
+      "max": null
+    },
+    {
+      "role": "Chapter Webmaster",
+      "section": "Supporting Leaders",
+      "max": null
+    },
+    {
+      "role": "Chapter Director Consultant",
+      "section": "Regional Support Team",
+      "max": null
+    }
+  ],
   "people": [
     {
       "id": "Rag3V6j3CjTYuZwhSHWAqw==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [],
       "name": "Adam Bortolussi",
       "firstName": "Adam",
       "lastName": "Bortolussi",
@@ -47,6 +105,10 @@ window.MEMBERS_DB = {
     {
       "id": "oTTe8cAKWQ6oG8FJCkt+Pw==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Chapter Webmaster"
+      ],
       "name": "Brendon Mourao",
       "firstName": "Brendon",
       "lastName": "Mourao",
@@ -64,6 +126,10 @@ window.MEMBERS_DB = {
     {
       "id": "2Gx+vjZha2dDZfFDgHBz6g==",
       "enabled": false,
+      "trophyWinner": false,
+      "roles": [
+        "Chapter Director Consultant"
+      ],
       "name": "Brianna White",
       "firstName": "Brianna",
       "lastName": "White",
@@ -81,6 +147,11 @@ window.MEMBERS_DB = {
     {
       "id": "YZ9ufZ4p9c9OWBnIOdnZcA==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Membership Committee",
+        "Membership Committee - Quality Assurance"
+      ],
       "name": "Christopher Fitts",
       "firstName": "Christopher",
       "lastName": "Fitts",
@@ -98,6 +169,8 @@ window.MEMBERS_DB = {
     {
       "id": "0wlKhyGU865iDKfFO8At9Q==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [],
       "name": "Christopher Mingace",
       "firstName": "Christopher",
       "lastName": "Mingace",
@@ -115,6 +188,8 @@ window.MEMBERS_DB = {
     {
       "id": "enGC8FICZjNLd4hNocOQmQ==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [],
       "name": "Christopher Orrick",
       "firstName": "Christopher",
       "lastName": "Orrick",
@@ -132,6 +207,8 @@ window.MEMBERS_DB = {
     {
       "id": "0PIhS4ZU9mE0d0uRcDU68w==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [],
       "name": "Clif Newton",
       "firstName": "Clif",
       "lastName": "Newton",
@@ -149,6 +226,10 @@ window.MEMBERS_DB = {
     {
       "id": "SH38I/3252C1r6XB9ifC6w==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Vice President"
+      ],
       "name": "Ian McCarthy",
       "firstName": "Ian",
       "lastName": "McCarthy",
@@ -166,6 +247,10 @@ window.MEMBERS_DB = {
     {
       "id": "kW4lRZHMcM0DS7u84pfh9A==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Visitor Host"
+      ],
       "name": "Jake Shanley",
       "firstName": "Jake",
       "lastName": "Shanley",
@@ -183,6 +268,10 @@ window.MEMBERS_DB = {
     {
       "id": "+1w2thLr4Ve16fl9Ctp2xw==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Visitor Host"
+      ],
       "name": "Jeremy Cohen",
       "firstName": "Jeremy",
       "lastName": "Cohen",
@@ -200,6 +289,10 @@ window.MEMBERS_DB = {
     {
       "id": "nFGBAAeVpNoRUTFpwqNKiA==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "President"
+      ],
       "name": "Joseph Nealon",
       "firstName": "Joseph",
       "lastName": "Nealon",
@@ -217,6 +310,10 @@ window.MEMBERS_DB = {
     {
       "id": "0BkSUadz00Gm8d2rjHqMPw==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Secretary / Treasurer"
+      ],
       "name": "Matt Cuneo",
       "firstName": "Matt",
       "lastName": "Cuneo",
@@ -234,6 +331,8 @@ window.MEMBERS_DB = {
     {
       "id": "7MZR0B53fTQMSqtBWscLMQ==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [],
       "name": "Mike Saad",
       "firstName": "Mike",
       "lastName": "Saad",
@@ -251,6 +350,8 @@ window.MEMBERS_DB = {
     {
       "id": "NEitSKudkQvJx24u5swEKg==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [],
       "name": "Patrick DiTucci",
       "firstName": "Patrick",
       "lastName": "DiTucci",
@@ -268,6 +369,10 @@ window.MEMBERS_DB = {
     {
       "id": "i52tH5sJvQf9+rCZ34UWkw==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Membership Committee - Member Relations"
+      ],
       "name": "Peter Edwards",
       "firstName": "Peter",
       "lastName": "Edwards",
@@ -285,6 +390,8 @@ window.MEMBERS_DB = {
     {
       "id": "zETax0U00ouSKcWuJ0KybA==",
       "enabled": true,
+      "trophyWinner": true,
+      "roles": [],
       "name": "Peter Hamilton",
       "firstName": "Peter",
       "lastName": "Hamilton",
@@ -302,6 +409,10 @@ window.MEMBERS_DB = {
     {
       "id": "nvAZLxzaizQVjczJ9MFQsA==",
       "enabled": true,
+      "trophyWinner": false,
+      "roles": [
+        "Visitor Host"
+      ],
       "name": "Raphael Guimaraes",
       "firstName": "Raphael",
       "lastName": "Guimaraes",
@@ -315,94 +426,6 @@ window.MEMBERS_DB = {
       "bniPhoto": "https://bniconnectglobal.com/web/open/networkViewProfileImage/695ed945bac2780001809463.jpg",
       "bniProfileUrl": "https://bninortheastma.com/en-US/memberdetails?encryptedMemberId=nvAZLxzaizQVjczJ9MFQsA%3D%3D&name=Raphael+Guimaraes",
       "bniMessageUrl": "https://bninortheastma.com/en-US/sendmessage?userId=95erzBAk01S10D9iI04IJQ%3D%3D&userName=Raphael+Guimaraes"
-    }
-  ],
-  "leadership": [
-    {
-      "section": "Executive Team",
-      "members": [
-        {
-          "id": "nFGBAAeVpNoRUTFpwqNKiA==",
-          "titles": [
-            "President"
-          ]
-        },
-        {
-          "id": "SH38I/3252C1r6XB9ifC6w==",
-          "titles": [
-            "Vice President"
-          ]
-        },
-        {
-          "id": "0BkSUadz00Gm8d2rjHqMPw==",
-          "titles": [
-            "Secretary / Treasurer"
-          ]
-        }
-      ]
-    },
-    {
-      "section": "Visitor Host",
-      "members": [
-        {
-          "id": "kW4lRZHMcM0DS7u84pfh9A==",
-          "titles": [
-            "Visitor Host"
-          ]
-        },
-        {
-          "id": "+1w2thLr4Ve16fl9Ctp2xw==",
-          "titles": [
-            "Visitor Host"
-          ]
-        },
-        {
-          "id": "nvAZLxzaizQVjczJ9MFQsA==",
-          "titles": [
-            "Visitor Host"
-          ]
-        }
-      ]
-    },
-    {
-      "section": "Membership Committee",
-      "members": [
-        {
-          "id": "YZ9ufZ4p9c9OWBnIOdnZcA==",
-          "titles": [
-            "Membership Committee",
-            "Quality Assurance"
-          ]
-        },
-        {
-          "id": "i52tH5sJvQf9+rCZ34UWkw==",
-          "titles": [
-            "Membership Committee - Member Relations"
-          ]
-        }
-      ]
-    },
-    {
-      "section": "Supporting Leaders",
-      "members": [
-        {
-          "id": "oTTe8cAKWQ6oG8FJCkt+Pw==",
-          "titles": [
-            "Chapter Webmaster"
-          ]
-        }
-      ]
-    },
-    {
-      "section": "Regional Support Team",
-      "members": [
-        {
-          "id": "2Gx+vjZha2dDZfFDgHBz6g==",
-          "titles": [
-            "Chapter Director Consultant"
-          ]
-        }
-      ]
     }
   ]
 };

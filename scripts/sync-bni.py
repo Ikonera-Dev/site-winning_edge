@@ -23,8 +23,11 @@ match. Anyone in the database who's enabled but no longer on BNI is
 reported, not removed or disabled; set "enabled": false yourself if they've
 left the chapter.
 
-The leadership list (who holds which role) is replaced with BNI's current
-one on every run, since terms change and BNI is the source of truth for it.
+Leadership roles are stored per person ("roles": ["President"]) and follow
+the same rule: empty roles are filled from BNI's leadership cards, different
+ones are reported (--update takes BNI's). A role BNI shows that isn't in the
+database's "roles" table yet is added to it, with no cap ("max": null).
+The sync never changes "enabled", "trophyWinner", "email" or "photo".
 
 Why a script instead of the page fetching this itself: BNI's server doesn't
 send CORS headers, so a browser on your own domain is blocked from reading
@@ -59,15 +62,26 @@ DB_PREFIX = "window.MEMBERS_DB = "
 
 DB_HEADER = """/**
  * ============================================================================
- *  MEMBER DATABASE: one record per person, plus who holds which leadership
- *  role. Loaded by index.html, rendered by js/app.js.
+ *  MEMBER DATABASE: the leadership roles table and one record per person.
+ *  Loaded by index.html, rendered by js/app.js.
  * ============================================================================
  *  Safe to edit by hand, but keep it valid JSON after the `=` sign: double
  *  quotes, no trailing commas, no comments inside. scripts/sync-bni.py reads
  *  and rewrites this file and will stop with an error if it can't parse it.
  *
+ *  roles: every leadership role, in display order. Each has:
+ *    role          the title, exactly as used in people's "roles"
+ *    section       the Chapter Leadership heading it's listed under
+ *    max           how many people may hold it (null = no limit)
+ *  Sections appear in the order of their first role; people within a
+ *  section are ordered by their highest-listed role, then by name.
+ *
  *  Each person is addressed by "id" (their BNI member id). Fields:
  *    enabled       true = shown in the Members grid, false = hidden
+ *                  (Leadership shows everyone who has a role, enabled or
+ *                  not, so the Regional Support Team stays leadership-only)
+ *    trophyWinner  true = shown as This Week's trophy winner
+ *    roles         leadership roles held, e.g. ["President"]; [] = none
  *    name          display name; firstName / lastName are split from it
  *    company, companyUrl, category (categoryPath = BNI's full category)
  *    phone, email  email is never on BNI, add it by hand
@@ -76,8 +90,6 @@ DB_HEADER = """/**
  *                  e.g. "photo": "img/members/adam-bortolussi.jpg"
  *    bniPhoto, bniProfileUrl, bniMessageUrl
  *                  mirror BNI; refreshed on every sync, don't edit
- *
- *  leadership: sections of { id, titles }, replaced from BNI on every sync.
  *
  *  Refresh from BNI:  python3 scripts/sync-bni.py   (--dry-run to preview)
  * ============================================================================
@@ -91,13 +103,17 @@ DEFAULT_PHOTO = "https://bniconnectglobal.com/web/images/default_profile.gif"
 # Field order of a person record in members.js. `email` is never on BNI
 # and is only ever filled in by hand.
 RECORD_FIELDS = [
-    "id", "enabled", "name", "firstName", "lastName",
+    "id", "enabled", "trophyWinner", "roles", "name", "firstName", "lastName",
     "company", "companyUrl", "category", "categoryPath",
     "phone", "email", "photo", "bniPhoto", "bniProfileUrl", "bniMessageUrl",
 ]
 
-# Fields the sync fills in from BNI when they're empty. `enabled`, `email`
-# and `photo` are never touched.
+# Default for a field missing from a record (e.g. one added by hand).
+FIELD_DEFAULTS = {"enabled": True, "trophyWinner": False, "roles": []}
+
+# Fields the sync fills in from BNI when they're empty. `enabled`,
+# `trophyWinner`, `email` and `photo` are never touched; `roles` is handled
+# separately in sync().
 BNI_FIELDS = [
     "name", "firstName", "lastName", "company", "companyUrl", "category",
     "categoryPath", "phone",
@@ -223,32 +239,19 @@ def parse_leadership(html):
     return sections
 
 
-def shorten_title(new_title, existing_titles):
-    # BNI spells a specialty title as "Membership Committee - Quality
-    # Assurance" — if "Membership Committee" is already one of this
-    # person's titles, showing both in full repeats the shared prefix
-    # ("Membership Committee · Membership Committee - Quality Assurance").
-    # Trim to just the part after the separator in that case.
-    for existing in existing_titles:
-        prefix = existing + " - "
-        if new_title.startswith(prefix):
-            return new_title[len(prefix):]
-    return new_title
-
-
 def merge_duplicate_people(people):
     # BNI renders one card per (person, title) pair — someone on the
     # Membership Committee with a second specialty title shows up twice.
-    # Fold those into a single card with multiple titles instead.
+    # Fold those into one person with multiple titles. Titles are kept in
+    # full; js/app.js shortens repeated prefixes for display.
     merged = []
     by_name = {}
     for person in people:
         if person["name"] in by_name:
             existing = by_name[person["name"]]
             for title in person["titles"]:
-                short_title = shorten_title(title, existing["titles"])
-                if short_title not in existing["titles"]:
-                    existing["titles"].append(short_title)
+                if title not in existing["titles"]:
+                    existing["titles"].append(title)
             existing["companyUrl"] = existing["companyUrl"] or person["companyUrl"]
             if existing["photo"] == DEFAULT_PHOTO:
                 existing["photo"] = person["photo"]
@@ -308,6 +311,8 @@ def to_record(person, enabled):
     return {
         "id": person["memberId"] or f"name:{person['name']}",
         "enabled": enabled,
+        "trophyWinner": False,
+        "roles": list(person.get("titles", [])),
         "name": person["name"],
         "firstName": first,
         "lastName": last,
@@ -342,6 +347,9 @@ def found_on_bni(members, leadership_sections):
                 for field in BNI_FIELDS + MIRROR_FIELDS:
                     if not existing[field] and leader[field]:
                         existing[field] = leader[field]
+                for title in leader["roles"]:
+                    if title not in existing["roles"]:
+                        existing["roles"].append(title)
                 p["id"] = existing["id"]
             else:
                 found[leader["id"]] = leader
@@ -352,7 +360,7 @@ def found_on_bni(members, leadership_sections):
 
 def load_db():
     if not DB_PATH.exists():
-        return {"lastSynced": "", "people": [], "leadership": []}
+        return {"lastSynced": "", "roles": [], "people": []}
     text = DB_PATH.read_text(encoding="utf-8")
     if DB_PREFIX not in text:
         print(f"ERROR: {DB_PATH.name} should contain `{DB_PREFIX}{{...}};`. "
@@ -373,7 +381,7 @@ def sync(db, found, update):
     by_id = {p.get("id"): p for p in people}
     by_name = {p.get("name", "").lower(): p for p in people}
     report = {"added": [], "filled": [], "updated": [], "differs": [], "refreshed": [],
-              "missing": [], "disabled": []}
+              "missing": [], "disabled": [], "newRoles": []}
 
     for rec in found.values():
         existing = by_id.get(rec["id"]) or by_name.get(rec["name"].lower())
@@ -384,7 +392,7 @@ def sync(db, found, update):
 
         # Records added by hand might not have every field yet.
         for field in RECORD_FIELDS:
-            existing.setdefault(field, "" if field != "enabled" else True)
+            existing.setdefault(field, FIELD_DEFAULTS.get(field, ""))
         if existing["id"] != rec["id"] and existing["id"].startswith("name:"):
             existing["id"] = rec["id"]
 
@@ -400,6 +408,19 @@ def sync(db, found, update):
                 report["updated"].append(f"{existing['name']}: {field} {ours!r} -> {theirs!r}")
             else:
                 report["differs"].append(f"{existing['name']}: {field} is {ours!r}, BNI has {theirs!r}")
+
+        # Roles: an empty list is filled in; a different one (including BNI
+        # no longer listing a role) is reported, or taken with --update.
+        ours, theirs = existing["roles"], rec["roles"]
+        if set(ours) != set(theirs):
+            if not ours:
+                existing["roles"] = theirs
+                report["filled"].append(f"{existing['name']}: roles = {theirs}")
+            elif update:
+                existing["roles"] = theirs
+                report["updated"].append(f"{existing['name']}: roles {ours} -> {theirs}")
+            else:
+                report["differs"].append(f"{existing['name']}: roles are {ours}, BNI has {theirs}")
 
         for field in MIRROR_FIELDS:
             if existing[field] != rec[field]:
@@ -417,6 +438,19 @@ def sync(db, found, update):
     return report
 
 
+def add_new_roles(db, leadership_sections, report):
+    """Adds any role BNI shows that the roles table doesn't have yet, under
+    BNI's section heading, with no cap."""
+    known = {r["role"] for r in db["roles"]}
+    for section in leadership_sections:
+        for p in section["people"]:
+            for title in p["titles"]:
+                if title not in known:
+                    known.add(title)
+                    db["roles"].append({"role": title, "section": section["section"], "max": None})
+                    report["newRoles"].append(f"{title} (section: {section['section']}, no cap)")
+
+
 def print_report(report, update):
     labels = [
         ("added", "New, added to the database"),
@@ -426,6 +460,7 @@ def print_report(report, update):
         ("refreshed", "BNI photo/links refreshed"),
         ("missing", "Enabled but no longer on BNI (set \"enabled\": false if they left)"),
         ("disabled", "On BNI's member list but disabled in the database"),
+        ("newRoles", "New roles added to the roles table (set \"max\" if it has a cap)"),
     ]
     any_output = False
     for key, label in labels:
@@ -462,23 +497,18 @@ def main():
     print(f"Parsed {len(members)} members and {leadership_count} leadership "
           f"entries across {len(leadership)} section(s).")
 
+    db.setdefault("roles", [])
     found = found_on_bni(members, leadership)
     report = sync(db, found, args.update)
+    add_new_roles(db, leadership, report)
     print_report(report, args.update)
 
-    if leadership:
-        db["leadership"] = [
-            {"section": s["section"],
-             "members": [{"id": p["id"], "titles": p["titles"]} for p in s["people"]]}
-            for s in leadership
-        ]
-
     db["people"] = sorted(
-        ({f: p.get(f, "") for f in RECORD_FIELDS} | p for p in db["people"]),
+        ({f: p.get(f, FIELD_DEFAULTS.get(f, "")) for f in RECORD_FIELDS} | p for p in db["people"]),
         key=lambda p: p["name"].lower(),
     )
     db["lastSynced"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    output = {"lastSynced": db["lastSynced"], "people": db["people"], "leadership": db["leadership"]}
+    output = {"lastSynced": db["lastSynced"], "roles": db["roles"], "people": db["people"]}
 
     if args.dry_run:
         print("\n--dry-run: nothing written.")

@@ -15,7 +15,7 @@ index.html               the page shell (structure only — no content to edit h
 css/styles.css            theme: white background, #CF2030 (BNI red) accent
 js/app.js                 renders the data files below into the page
 data/site-data.js         ← chapter info + THIS WEEK + rotation. Edit weekly.
-data/members.js           ← member database + leadership roles. Synced from BNI, safe to hand-edit.
+data/members.js           ← member database + roles table. Synced from BNI, safe to hand-edit.
 img/                      ← site images (logo, favicon, share image). See img/README.md.
 img/members/              ← your own member photos. See img/members/README.md.
 scripts/sync-bni.py       checks BNI against data/members.js and adds/fills in people
@@ -36,6 +36,8 @@ their BNI member `id`:
 {
   "id": "Rag3V6j3CjTYuZwhSHWAqw==",
   "enabled": true,
+  "trophyWinner": false,
+  "roles": [],
   "name": "Adam Bortolussi",
   "firstName": "Adam",
   "lastName": "Bortolussi",
@@ -53,8 +55,14 @@ their BNI member `id`:
 ```
 
 - **`enabled`** decides whether the person appears in the Members grid.
-  Leadership cards are driven by the `leadership` list at the bottom of the
-  file (roles from BNI, pointing at people by `id`), not by `enabled`.
+- **`trophyWinner`**: set `true` on this week's winner (and `false` on last
+  week's). The This Week trophy card shows whoever is flagged. The
+  congratulations line is `trophyNote` in `data/site-data.js`.
+- **`roles`**: the leadership roles someone holds, e.g. `["President"]`.
+  The Chapter Leadership tab lists everyone with at least one role,
+  whether or not they're `enabled`. That's how the Regional Support Team
+  (e.g. the Director Consultant, `enabled: false`) appears in Leadership
+  but not in the Members grid.
 - **`email`**, a missing **`companyUrl`**, or a corrected **`company`** /
   **`phone`**: just edit the record. The sync never overwrites a field that
   already has a value.
@@ -64,6 +72,21 @@ their BNI member `id`:
   `img/members/README.md`.
 - Fields starting with **`bni`** mirror BNI and are refreshed on every sync.
   Don't edit those.
+
+### The roles table
+
+The `roles` list at the top of `data/members.js` defines every role:
+
+```json
+{ "role": "President", "section": "Executive Team", "max": 1 }
+```
+
+- **`section`** is the heading the role is listed under in Chapter
+  Leadership. Sections appear in the order of their first role; within a
+  section, people are ordered by their highest-listed role, then by name.
+- **`max`** is how many people can hold the role (`null` = no limit). It's
+  recorded but **not enforced yet**: if two people have a capped role, the
+  site shows both and nothing warns.
 
 The file must stay valid JSON after the `window.MEMBERS_DB = ` line: double
 quotes, no trailing commas, no comments. The sync script stops with the line
@@ -88,7 +111,11 @@ apply it:
   `--update` to take BNI's values instead.
 - **No longer on BNI** → reported only. Set `"enabled": false` if they've
   left the chapter.
-- **Leadership roles** → replaced with BNI's current list.
+- **Roles** → follow the same rule as other fields: empty `roles` are filled
+  in from BNI's leadership cards, differences are reported (`--update`
+  takes BNI's). A role BNI shows that isn't in the roles table yet is added
+  with `"max": null`.
+- **Never touched:** `enabled`, `trophyWinner`, `email`, `photo`.
 
 **Why a script instead of the page fetching BNI live:** BNI's server doesn't
 send CORS headers, so a visitor's browser is blocked from reading that data
@@ -148,15 +175,16 @@ but a few external things it depends on:
 
 ## Updating content week to week
 
-Open `data/site-data.js` and edit the `thisWeek` block (trophy winner,
-speakers, quote, PALMS metrics) and the `rotation` array. Full instructions
+Open `data/site-data.js` and edit the `thisWeek` block (trophy note,
+speakers, quote, PALMS metrics) and the `rotation` array. Pick the trophy
+winner by moving `"trophyWinner": true` in `data/members.js`. Full instructions
 are in the comment block at the top of that file.
 
 Rotation dates are written as "Month Day" (e.g. `"October 2"`). Dates before
 today are hidden on the site automatically, so old rows can stay in the file
 until you get around to deleting them.
 
-For the trophy winner and speakers, you only need to type their `name` and
+For the speakers, you only need to type their `name` and
 `company` — their photo and company link are looked up automatically by
 matching the name against the member directory. If a speaker is a visitor
 rather than a chapter member, add `photo` / `companyUrl` directly on that

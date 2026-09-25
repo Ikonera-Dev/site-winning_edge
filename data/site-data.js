@@ -14,14 +14,16 @@
  *  ------------------------------------------------------------------------
  *  1. Open the weekly BNI email (the .oft/.eml Outlook file, or whatever
  *     Friday recap you send out).
- *  2. Update the `thisWeek` block: meetingDateLabel, trophyWinner,
+ *  2. Update the `thisWeek` block: meetingDateLabel, trophyNote,
  *     quoteOfWeek (+ optional quoteAuthor), speakers, metrics.
+ *     The trophy winner itself is picked in data/members.js: move
+ *     "trophyWinner": true to the winner's record (false on everyone else).
  *  3. Add new speaker dates to the bottom of `rotation`. Past dates are
  *     hidden on the site automatically, so deleting old rows is optional
  *     housekeeping.
  *  4. Save. Refresh the browser tab. That's it — no build step.
  *
- *  TROPHY WINNER / SPEAKERS — you only need `name` and `company`.
+ *  SPEAKERS — you only need `name` and `company`.
  *  ------------------------------------------------------------------------
  *  Their photo and company link are looked up automatically by matching
  *  `name` against the member database (data/members.js), so most
@@ -70,11 +72,7 @@ window.SITE_DATA = {
    */
   thisWeek: {
     meetingDateLabel: "September 25th, 2026",
-    trophyWinner: {
-      name: "Peter Hamilton",
-      company: "Mirick O'Connell",
-      note: "Congratulations, Peter!"
-    },
+    trophyNote: "Congratulations, Peter!",
     quoteOfWeek: "Every problem is a gift, without problems we would not grow.",
     quoteAuthor: "Tony Robbins",
     speakers: [
