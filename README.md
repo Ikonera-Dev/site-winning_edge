@@ -1,265 +1,45 @@
-# BNI Winning Edge — chapter site
+# BNI Winning Edge — chapter website
 
-A one-page site for the chapter: this week's meeting (trophy winner, speakers,
-quote, PALMS numbers), the upcoming speaker rotation, the leadership team, and
-the full member directory. Plain HTML/CSS/JS — no build step, no server-side
-code, no database.
+The website of **BNI Winning Edge**, a BNI referral marketing chapter that
+meets Friday mornings in Framingham, Massachusetts.
 
-Live at **https://bniwinningedge.com**, served by GitHub Pages from the `main`
-branch.
+Live at **https://bniwinningedge.com**
 
-## Project structure
+## What's on the site
+
+- **This Week**: the week's trophy winner, quote of the week, and speakers,
+  plus the chapter's PALMS report (TYFCB, 1-to-1's, CEUs, Referrals) with
+  year-to-date totals, the change since last week, and progress toward the
+  year's goals.
+- **Upcoming Speaker Rotation**: who presents on each upcoming Friday. Past
+  dates drop off automatically.
+- **Our People**: the chapter leadership team, grouped by role, and the
+  member directory with each member's company, category, and contact links.
+- **Visit Us**: meeting day, time and location, directions, and what
+  visitors should know.
+
+## How it's built
+
+A single static page: plain HTML, CSS and JavaScript, with no build step, no
+server, and no framework. The page is filled in from a few data files when it
+loads.
 
 ```
-index.html               the page shell (structure only — no content to edit here)
-css/styles.css            theme: white background, #CF2030 (BNI red) accent
-js/app.js                 renders the data files below into the page
-data/site-data.js         ← chapter info + THIS WEEK + rotation. Edit weekly.
-data/members.js           ← member database + roles table. Synced from BNI, safe to hand-edit.
-img/                      ← site images (logo, favicon, share image). See img/README.md.
-img/members/              ← your own member photos. See img/members/README.md.
-scripts/sync-bni.py       checks BNI against data/members.js and adds/fills in people
-scripts/palms.py          shows, requests and updates the PALMS numbers in site-data.js
-.claude/skills/           Claude Code skills for this repo (palms-report)
-CNAME                     custom domain for GitHub Pages. Don't delete.
+index.html          the page
+css/styles.css      styling
+js/app.js           fills the page from the data files
+data/site-data.js   chapter info, this week's meeting, PALMS report, speaker rotation
+data/members.js     members, leadership roles, and who appears on the site
+img/                site images and member photos
+scripts/            maintenance scripts for the data files
 ```
 
-Everything in this repo is publicly reachable on the live site, so never
-commit anything private (the weekly meeting email files `*.oft`/`*.eml`/`*.msg`
-are already blocked by `.gitignore`).
+## Viewing it locally
 
-## The member database (`data/members.js`)
+Open `index.html` in a browser, or serve the folder:
 
-Every person (members, leadership, and leadership-only people like the
-Director Consultant) has one record in `data/members.js`, addressed by
-their BNI member `id`:
-
-```json
-{
-  "id": "Rag3V6j3CjTYuZwhSHWAqw==",
-  "enabled": true,
-  "trophyWinner": false,
-  "roles": [],
-  "name": "Adam Bortolussi",
-  "firstName": "Adam",
-  "lastName": "Bortolussi",
-  "company": "Bortolussi Wealth Management",
-  "companyUrl": "",
-  "category": "Financial Advisor",
-  "categoryPath": "Finance & Insurance > Financial Advisor > Financial Advisor",
-  "phone": "5084163534",
-  "email": "",
-  "photo": "",
-  "bniPhoto": "",
-  "bniProfileUrl": "https://bninortheastma.com/en-US/memberdetails?...",
-  "bniMessageUrl": "https://bninortheastma.com/en-US/sendmessage?..."
-}
-```
-
-- **`enabled`** decides whether the person appears in the Members grid.
-- **`trophyWinner`**: set `true` on this week's winner (and `false` on last
-  week's). There's one winner: if more are flagged, the site shows the
-  first alphabetically and the sync reports it. The
-  congratulations line is `trophyNote` in `data/site-data.js`.
-- **`roles`**: the leadership roles someone holds, e.g. `["President"]`.
-  The Chapter Leadership tab lists everyone with at least one role,
-  whether or not they're `enabled`. That's how the Regional Support Team
-  (e.g. the Director Consultant, `enabled: false`) appears in Leadership
-  but not in the Members grid.
-- **`email`**, a missing **`companyUrl`**, or a corrected **`company`** /
-  **`phone`**: just edit the record. The sync never overwrites a field that
-  already has a value.
-- **Photos:** `photo` is the image the site shows. Leave it `""` to use the
-  BNI Connect photo (`bniPhoto`), or put your own file in `img/members/` and
-  set `"photo": "img/members/adam-bortolussi.jpg"`. See
-  `img/members/README.md`.
-- Fields starting with **`bni`** mirror BNI and are refreshed on every sync.
-  Don't edit those.
-
-### The roles table
-
-The `roles` list at the top of `data/members.js` defines every role:
-
-```json
-{ "role": "President", "section": "Executive Team", "max": 1 }
-```
-
-- **`section`** is the heading the role is listed under in Chapter
-  Leadership. Sections appear in the order of their first role; within a
-  section, people are ordered by their highest-listed role, then by name.
-- **`max`** is how many people can hold the role (`null` = no limit),
-  counting its sub-roles: "Membership Committee - Member Relations" counts
-  toward "Membership Committee", so a cap of 3 means three committee
-  members in total. Caps today: President, Vice President and Secretary /
-  Treasurer 1 each; Visitor Host 3; Membership Committee 3.
-  Every sync runs a **role cap check**: a capped role must be held by 1 to
-  `max` people. When it fails (too many holders, or nobody), the live BNI
-  page decides. If BNI lists a valid set of holders, the database is set to
-  match; if BNI's own list breaks the cap too, nothing changes and the
-  script tells you to fix it by hand. `--dry-run` shows what it would do.
-- **`bniHolders`** is who BNI listed for the role at the last sync (member
-  ids, refreshed every run; don't edit). If `data/members.js` is edited to
-  break a cap before the next sync, the site still shows at most `max`
-  people, preferring these, then alphabetical, and logs a browser-console
-  warning naming whoever it left out.
-
-The file must stay valid JSON after the `window.MEMBERS_DB = ` line: double
-quotes, no trailing commas, no comments. The sync script stops with the line
-number if it can't read it. And like everything in this repo, it's public, so
-only add contact details members are happy to have online.
-
-### Syncing with BNI
-
-```bash
-python3 scripts/sync-bni.py --dry-run
-```
-
-reads the chapter's public BNI page and reports, without changing anything:
-who's new, which empty fields BNI could fill in, where BNI differs from your
-values, and who's enabled here but no longer on BNI. Drop `--dry-run` to
-apply it:
-
-- **New on BNI** → added. Chapter members start `enabled: true`;
-  leadership-only people start `enabled: false`.
-- **Already in the database** → only empty fields are filled in. Where BNI
-  has a different value, yours is kept and the difference is reported; add
-  `--update` to take BNI's values instead.
-- **No longer on BNI** → reported only. Set `"enabled": false` if they've
-  left the chapter.
-- **Roles** → follow the same rule as other fields: empty `roles` are filled
-  in from BNI's leadership cards, differences are reported (`--update`
-  takes BNI's). A role BNI shows that isn't in the roles table yet is added
-  with `"max": null`.
-- **Never touched:** `enabled`, `trophyWinner`, `email`, `photo`.
-
-**Why a script instead of the page fetching BNI live:** BNI's server doesn't
-send CORS headers, so a visitor's browser is blocked from reading that data
-from a page on your own domain. Running the fetch here, from your machine,
-sidesteps that, since CORS only restricts browsers. It also means the public
-site never breaks just because BNI's page is slow or down.
-
-## Running it locally
-
-You don't strictly need a local server — double-clicking `index.html` works
-in most browsers because all data is loaded via `<script>` tags, not `fetch()`
-(which browsers block on `file://` URLs). A local server just gives you
-auto-reload while editing. Two easy options, neither requires installing a
-runtime:
-
-**Option A — VS Code Live Server extension (recommended)**
-1. Install the extension: **Live Server** by Ritwick Dey
-   (`ritwickdey.LiveServer`). This repo has a `.vscode/extensions.json` that
-   will prompt you to install it automatically when you open the folder.
-2. Right-click `index.html` → **Open with Live Server**.
-3. It opens in your browser at `http://127.0.0.1:5500` and auto-refreshes
-   whenever you save a file.
-
-**Option B — Python's built-in server** (Python already on this machine)
 ```bash
 python3 -m http.server 8000
 ```
-then open `http://localhost:8000`. No auto-reload — refresh manually after
-saving.
 
-No Node.js, npm, or other runtime is required for either option — `sync-bni.py`
-needs Python (already present), everything else is browser-native.
-
-## APIs / external services
-
-There isn't really an "API" here for the page itself — it's a static site —
-but a few external things it depends on:
-
-- **BNI's chapter-detail endpoint** — `scripts/sync-bni.py` fetches from
-  `bninortheastma.com/bnicms/v3/frontend/chapterdetail/display`. This is
-  BNI's own internal (undocumented, no key/auth) endpoint that their public
-  chapter page itself calls — not a stable public API, so if BNI redesigns
-  that page, this script may need its parsing patterns updated. It'll tell
-  you clearly (and not overwrite existing data) if it parses zero members.
-- **BNI Connect member photos** — by default hot-linked directly from
-  `bniconnectglobal.com` (`bniPhoto`). When a member updates their headshot
-  in BNI Connect, it updates here too, next sync. If BNI ever blocks
-  hotlinking, those photos would break; a photo stored in `img/members/`
-  (`photo`) doesn't depend on BNI.
-- **Google Maps** — the "View on Google Maps" button is a plain link
-  (`goo.gl/maps/...`), not an embedded map, so no Google Maps API key is
-  needed.
-- **No contact form, no database, no auth** — matches the "view-only,
-  I edit it myself" requirement. If a real contact form or admin login ever
-  gets added later, that's the point where an actual backend (and real API
-  keys) would come in — not needed for what's here now.
-
-## Updating content week to week
-
-Open `data/site-data.js` and edit the `thisWeek` block (trophy note,
-speakers), the `quote` (`text` + `author`), the `palms` report, and the
-`rotation` array.
-
-**PALMS:** each metric stores `ytd` (this week's year-to-date total),
-`lastWeekYtd` (last week's year-to-date total, not shown) and `goal`
-(full-year goal). The site shows the difference as "+$35,600 since last
-week" and the meter as a % of the goal. Each week, copy every `ytd` into
-`lastWeekYtd`, type the new `ytd` numbers, and set `asOf` to the report
-date as `YYYY-MM-DD`. Use `null` for anything not reported.
-
-`scripts/palms.py` does this for you:
-
-```bash
-python3 scripts/palms.py                 # show the report, incl. what the site will show
-python3 scripts/palms.py new-week        # roll the week over; asks for each number
-python3 scripts/palms.py set ceus=701    # fix a number in the current week
-python3 scripts/palms.py request         # fill-in form to ask someone for the numbers
-```
-
-For each metric, `new-week` accepts the new total (`873570`), the amount added
-this week (`+35600`), `same`, or `-` (not reported). `--from <file>` reads a
-filled-in `request` form, `--new-year` starts a new reporting year, and
-`--dry-run` previews without saving. It refuses a total that went down, a
-date that isn't after the current one, or a missing metric, and leaves the
-file untouched when it does. In Claude Code, the `palms-report` skill
-(`.claude/skills/palms-report/`) walks through the same steps. Pick the trophy
-winner by moving `"trophyWinner": true` in `data/members.js`. Full instructions
-are in the comment block at the top of that file.
-
-Rotation dates are written as "Month Day" (e.g. `"October 2"`). Dates before
-today are hidden on the site automatically, so old rows can stay in the file
-until you get around to deleting them.
-
-For the speakers, you only need to type their `name` and
-`company` — their photo and company link are looked up automatically by
-matching the name against the member directory. If a speaker is a visitor
-rather than a chapter member, add `photo` / `companyUrl` directly on that
-entry and they'll be used as-is instead of an auto lookup.
-
-Member and leadership changes (new member, title change, updated photo)
-come from running `python3 scripts/sync-bni.py`; anything BNI doesn't have
-goes straight into `data/members.js`. See "The member database" above.
-
-## Images
-
-Site images live in `img/` and are served from the site itself. `img/README.md`
-lists the expected files (logo, favicon, Apple touch icon, share image) and
-their sizes. The header logo is still hot-linked from an email CDN until a
-local `img/bni-logo.png` (or `.svg`) is added.
-
-## Deploying
-
-The site deploys with **GitHub Pages** ("Deploy from a branch", `main`, `/`),
-with the custom domain set by the `CNAME` file. There's no build step: pushing
-to `main` publishes.
-
-1. Preview locally (see "Running it locally" above).
-2. Commit and push to `main`. Larger changes are built on a separate branch
-   and merged into `main` when ready.
-3. Pages rebuilds in about a minute. To check from the command line:
-   `gh api repos/Ikonera-Dev/site_bniwinningedge/pages/builds/latest --jq '.status + " " + .commit[0:7]'`
-4. Check the live site.
-
-**Cloudflare** sits in front of GitHub Pages (DNS, TLS, and caching; `www`
-redirects to the bare domain). It caches CSS, JS and data files for about 10
-minutes, so an update can take up to 10 minutes to appear even after the
-Pages build finishes. HTML isn't cached. To see the fresh copy of a file right
-away, add any query string, e.g.
-`https://bniwinningedge.com/data/site-data.js?x=123`.
-
-Re-run `python3 scripts/sync-bni.py` locally before a deploy if you want the
-roster refreshed; the script doesn't run on the host.
+then visit http://localhost:8000.
