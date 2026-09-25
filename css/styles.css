@@ -158,7 +158,7 @@ a { color: var(--accent); text-decoration: none; }
 
 .week-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
 @media (max-width: 780px) {
@@ -181,13 +181,11 @@ a { color: var(--accent); text-decoration: none; }
   font-weight: 600;
 }
 
-.announcements-card ul,
 .policies-card ul {
   margin: 0;
   padding-left: 20px;
   color: var(--ink-secondary);
 }
-.announcements-card li,
 .policies-card li { margin-bottom: 8px; }
 
 /* ---------- People rows (trophy / speakers / leadership / members) ---------- */

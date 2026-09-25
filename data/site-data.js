@@ -15,10 +15,10 @@
  *  1. Open the weekly BNI email (the .oft/.eml Outlook file, or whatever
  *     Friday recap you send out).
  *  2. Update the `thisWeek` block: meetingDateLabel, trophyWinner,
- *     quoteOfWeek (+ optional quoteAuthor), speakers, announcements, metrics.
- *  3. Drop the OLD "This Week" speakers into `rotation` if they're not
- *     already there, and delete the date from `rotation` once it has passed
- *     (or just leave it — past dates are hidden automatically).
+ *     quoteOfWeek (+ optional quoteAuthor), speakers, metrics.
+ *  3. Add new speaker dates to the bottom of `rotation`. Past dates are
+ *     hidden on the site automatically, so deleting old rows is optional
+ *     housekeeping.
  *  4. Save. Refresh the browser tab. That's it — no build step.
  *
  *  TROPHY WINNER / SPEAKERS — you only need `name` and `company`.
@@ -81,10 +81,6 @@ window.SITE_DATA = {
       { name: "Raphael Guimaraes", company: "SumZero Energy Systems" },
       { name: "Brendon Mourao", company: "Ikonera" }
     ],
-    announcements: [
-      "The speaker schedule has been updated to include a full rotation of members — please review below and let Leadership know if your date no longer works.",
-      "Quarterly dues reminder: if you haven't paid yet, reach out to Treasurer Matt Cuneo."
-    ],
     metrics: {
       asOf: "09/18/2026",
       ytdSince: "October 1st",
@@ -96,8 +92,9 @@ window.SITE_DATA = {
   },
 
   /**
-   * ROTATION — upcoming presenter lineup. Add new rows at the bottom,
-   * delete rows once they've been featured in `thisWeek` and passed.
+   * ROTATION — upcoming presenter lineup. Add new rows at the bottom.
+   * Write dates as "Month Day" (e.g. "October 2"). Dates before today are
+   * hidden automatically; delete old rows whenever convenient.
    */
   rotation: [
     { date: "September 25", speakers: "Raphael G. / Brendon M." },

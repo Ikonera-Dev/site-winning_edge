@@ -140,13 +140,6 @@
     </div>
   `).join("");
 
-  const announcementsEl = $("#announcements-list");
-  siteData.thisWeek.announcements.forEach((a) => {
-    const li = document.createElement("li");
-    li.textContent = a;
-    announcementsEl.appendChild(li);
-  });
-
   /* ---------------- PALMS stat meters ---------------- */
 
   $("#palms-asof").textContent = `— as of ${siteData.thisWeek.metrics.asOf} · YTD since ${siteData.thisWeek.metrics.ytdSince}`;
@@ -186,10 +179,32 @@
 
   /* ---------------- Rotation ---------------- */
 
+  // Rotation dates are written without a year ("October 2"). Each one is read
+  // as whichever of last/this/next year puts it closest to today, so January
+  // rows added in December count as upcoming and last fall's leftover rows
+  // count as past. Rows before today are hidden; today's stays visible all day.
+  function rotationDate(label, today) {
+    if (!/^[A-Za-z]+\.? \d{1,2}$/.test(String(label).trim())) return null;
+    const y = today.getFullYear();
+    const candidates = [y - 1, y, y + 1].map((year) => new Date(`${label} ${year}`));
+    if (isNaN(candidates[0])) return null;
+    return candidates.reduce((best, d) =>
+      Math.abs(d - today) < Math.abs(best - today) ? d : best);
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = siteData.rotation.filter((row) => {
+    const d = rotationDate(row.date, today);
+    return d === null || d >= today; // an unparseable label is shown, not dropped
+  });
+
   const rotationBody = $("#rotation-body");
-  rotationBody.innerHTML = siteData.rotation.map((row) => `
-    <tr><td>${esc(row.date)}</td><td>${esc(row.speakers)}</td></tr>
-  `).join("");
+  rotationBody.innerHTML = upcoming.length
+    ? upcoming.map((row) => `
+        <tr><td>${esc(row.date)}</td><td>${esc(row.speakers)}</td></tr>
+      `).join("")
+    : `<tr><td colspan="2" class="muted">The next rotation will be posted soon.</td></tr>`;
 
   /* ---------------- Leadership ---------------- */
 

@@ -5,6 +5,9 @@ quote, PALMS numbers), the upcoming speaker rotation, the leadership team, and
 the full member directory. Plain HTML/CSS/JS — no build step, no server-side
 code, no database.
 
+Live at **https://bniwinningedge.com**, served by GitHub Pages from the `main`
+branch.
+
 ## Project structure
 
 ```
@@ -14,16 +17,22 @@ js/app.js                 renders the data files below into the page
 data/site-data.js         ← chapter info + THIS WEEK + rotation. Edit weekly.
 data/members-auto.js      ← member + leadership roster. AUTO-GENERATED, don't hand-edit.
 data/overrides.js         ← manual fixes/additions on top of members-auto.js. Edit as needed.
+img/                      ← site images (logo, favicon, share image). See img/README.md.
 scripts/sync-bni.py       fetches the roster from BNI and regenerates members-auto.js
+CNAME                     custom domain for GitHub Pages. Don't delete.
 ```
+
+Everything in this repo is publicly reachable on the live site, so never
+commit anything private (the weekly meeting email files `*.oft`/`*.eml`/`*.msg`
+are already blocked by `.gitignore`).
 
 ## Where the member/leadership data comes from
 
 The member directory and leadership team are fetched from the chapter's
 public BNI page rather than typed in by hand — run:
 
-```powershell
-python scripts/sync-bni.py
+```bash
+python3 scripts/sync-bni.py
 ```
 
 whenever the roster changes (new member, a title changes hands, someone
@@ -86,8 +95,8 @@ runtime:
    whenever you save a file.
 
 **Option B — Python's built-in server** (Python already on this machine)
-```powershell
-python -m http.server 8000
+```bash
+python3 -m http.server 8000
 ```
 then open `http://localhost:8000`. No auto-reload — refresh manually after
 saving.
@@ -122,8 +131,12 @@ but a few external things it depends on:
 ## Updating content week to week
 
 Open `data/site-data.js` and edit the `thisWeek` block (trophy winner,
-speakers, quote, announcements, PALMS metrics) and the `rotation` array. Full
-instructions are in the comment block at the top of that file.
+speakers, quote, PALMS metrics) and the `rotation` array. Full instructions
+are in the comment block at the top of that file.
+
+Rotation dates are written as "Month Day" (e.g. `"October 2"`). Dates before
+today are hidden on the site automatically, so old rows can stay in the file
+until you get around to deleting them.
 
 For the trophy winner and speakers, you only need to type their `name` and
 `company` — their photo and company link are looked up automatically by
@@ -132,27 +145,39 @@ rather than a chapter member, add `photo` / `companyUrl` directly on that
 entry and they'll be used as-is instead of an auto lookup.
 
 Member and leadership roster changes (new member, title change, updated
-photo) aren't edited by hand — run `python scripts/sync-bni.py` to pull the
+photo) aren't edited by hand — run `python3 scripts/sync-bni.py` to pull the
 latest from BNI, or add an entry to `data/overrides.js` for anything BNI
 doesn't have on file. See "Where the member/leadership data comes from" above.
 
-## Deploying to chapter-name.com
+## Images
 
-This is a static site, so it deploys anywhere that serves plain files —
-no server-side runtime needed:
+Site images live in `img/` and are served from the site itself. `img/README.md`
+lists the expected files (logo, favicon, Apple touch icon, share image) and
+their sizes. The header logo is still hot-linked from an email CDN until a
+local `img/bni-logo.png` (or `.svg`) is added.
 
-- **Easiest:** Netlify or Vercel — drag-and-drop the project folder (or
-  connect a GitHub repo) and point your domain's DNS at it. Free tier is
-  plenty for a site this size.
-- **GitHub Pages:** push this folder to a repo and enable Pages — free,
-  works well with a custom domain via a `CNAME` file.
-- **Traditional web host:** if whoever registered chapter-name.com already
-  has hosting/FTP access, just upload the whole folder as-is.
+## Deploying
 
-Whichever route, no environment variables or server config are needed —
-just the files as they are. Re-run `python scripts/sync-bni.py` locally
-before each deploy if you want the roster refreshed; the script itself
-doesn't run on the host.
+The site deploys with **GitHub Pages** ("Deploy from a branch", `main`, `/`),
+with the custom domain set by the `CNAME` file. There's no build step: pushing
+to `main` publishes.
+
+1. Preview locally (see "Running it locally" above).
+2. Commit and push to `main`. Larger changes are built on a separate branch
+   and merged into `main` when ready.
+3. Pages rebuilds in about a minute. To check from the command line:
+   `gh api repos/Ikonera-Dev/site_bniwinningedge/pages/builds/latest --jq '.status + " " + .commit[0:7]'`
+4. Check the live site.
+
+**Cloudflare** sits in front of GitHub Pages (DNS, TLS, and caching; `www`
+redirects to the bare domain). It caches CSS, JS and data files for about 10
+minutes, so an update can take up to 10 minutes to appear even after the
+Pages build finishes. HTML isn't cached. To see the fresh copy of a file right
+away, add any query string, e.g.
+`https://bniwinningedge.com/data/site-data.js?x=123`.
+
+Re-run `python3 scripts/sync-bni.py` locally before a deploy if you want the
+roster refreshed; the script doesn't run on the host.
 
 ## A note on the seed data
 
