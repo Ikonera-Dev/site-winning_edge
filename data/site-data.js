@@ -14,8 +14,8 @@
  *  ------------------------------------------------------------------------
  *  1. Open the weekly BNI email (the .oft/.eml Outlook file, or whatever
  *     Friday recap you send out).
- *  2. Update the `thisWeek` block: meetingDateLabel, trophyNote,
- *     quoteOfWeek (+ optional quoteAuthor), speakers, metrics.
+ *  2. Update the `thisWeek` block (meetingDateLabel, trophyNote,
+ *     speakers), the `quote`, and the `palms` report (see its comment).
  *     The trophy winner itself is picked in data/members.js: move
  *     "trophyWinner": true to the winner's record (false on everyone else).
  *  3. Add new speaker dates to the bottom of `rotation`. Past dates are
@@ -73,19 +73,46 @@ window.SITE_DATA = {
   thisWeek: {
     meetingDateLabel: "September 25th, 2026",
     trophyNote: "Congratulations, Peter!",
-    quoteOfWeek: "Every problem is a gift, without problems we would not grow.",
-    quoteAuthor: "Tony Robbins",
     speakers: [
       { name: "Raphael Guimaraes", company: "SumZero Energy Systems" },
       { name: "Brendon Mourao", company: "Ikonera" }
-    ],
+    ]
+  },
+
+  /**
+   * QUOTE OF THE WEEK
+   *   text    what was said (no quotation marks, the site adds them)
+   *   author  who said it; "" to leave the attribution off
+   */
+  quote: {
+    text: "Every problem is a gift, without problems we would not grow.",
+    author: "Tony Robbins"
+  },
+
+  /**
+   * PALMS REPORT
+   *   asOf      date of the report, written YYYY-MM-DD (shown as MM/DD/YYYY)
+   *   ytdSince  start of the reporting year, as shown on the site
+   *   metrics   one entry per stat tile, shown in this order:
+   *     ytd          year-to-date total from this week's report
+   *     lastWeekYtd  the year-to-date total from LAST week's report. Not
+   *                  shown; the site shows ytd − lastWeekYtd as
+   *                  "+X since last week".
+   *     goal         full-year goal; the meter shows ytd as a % of it
+   *     label, prefix  tile title and value prefix ("$" for money)
+   *   Use null for anything not reported.
+   *
+   *   Each week: copy every `ytd` into `lastWeekYtd`, then type the new
+   *   `ytd` numbers and `asOf` date.
+   */
+  palms: {
+    asOf: "2026-09-18",
+    ytdSince: "October 1st",
     metrics: {
-      asOf: "09/18/2026",
-      ytdSince: "October 1st",
-      tyfcb:      { label: "TYFCB",      prefix: "$", lastWeek: 35600, ytd: 837970, goal: 1000000 },
-      oneToOnes:  { label: "1-to-1's",   prefix: "",  lastWeek: 18,    ytd: 689,    goal: 2500 },
-      ceus:       { label: "CEUs",       prefix: "",  lastWeek: 3,     ytd: 698,    goal: 2400 },
-      referrals:  { label: "Referrals",  prefix: "",  lastWeek: null,  ytd: null,   goal: null }
+      tyfcb:     { label: "TYFCB",     prefix: "$", ytd: 837970, lastWeekYtd: 802370, goal: 1000000 },
+      oneToOnes: { label: "1-to-1's",  prefix: "",  ytd: 689,    lastWeekYtd: 671,    goal: 2500 },
+      ceus:      { label: "CEUs",      prefix: "",  ytd: 698,    lastWeekYtd: 695,    goal: 2400 },
+      referrals: { label: "Referrals", prefix: "",  ytd: null,   lastWeekYtd: null,   goal: null }
     }
   },
 

@@ -179,10 +179,10 @@
     : `<p class="muted">No trophy winner selected this week.</p>`;
 
   const quoteEl = $("#quote-of-week");
-  quoteEl.textContent = `“${siteData.thisWeek.quoteOfWeek}”`;
-  if (siteData.thisWeek.quoteAuthor) {
+  quoteEl.textContent = `“${siteData.quote.text}”`;
+  if (siteData.quote.author) {
     const cite = document.createElement("cite");
-    cite.textContent = `— ${siteData.thisWeek.quoteAuthor}`;
+    cite.textContent = `— ${siteData.quote.author}`;
     quoteEl.appendChild(cite);
   }
 
@@ -199,12 +199,28 @@
 
   /* ---------------- PALMS stat meters ---------------- */
 
-  $("#palms-asof").textContent = `— as of ${siteData.thisWeek.metrics.asOf} · YTD since ${siteData.thisWeek.metrics.ytdSince}`;
+  // `asOf` is stored as YYYY-MM-DD and shown as MM/DD/YYYY. Anything else
+  // is shown exactly as written.
+  function formatReportDate(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+    return m ? `${m[2]}/${m[3]}/${m[1]}` : String(iso);
+  }
 
-  const metricKeys = ["tyfcb", "oneToOnes", "ceus", "referrals"];
+  // Change since last week = this week's YTD minus last week's YTD.
+  function weeklyChange(metric) {
+    if (metric.lastWeekYtd === null || metric.lastWeekYtd === undefined) return "";
+    const diff = metric.ytd - metric.lastWeekYtd;
+    if (diff === 0) return "No change since last week";
+    const sign = diff > 0 ? "+" : "−";
+    return `${sign}${metric.prefix || ""}${formatNumber(Math.abs(diff))} since last week`;
+  }
+
+  const palms = siteData.palms;
+  $("#palms-asof").textContent = `— as of ${formatReportDate(palms.asOf)} · YTD since ${palms.ytdSince}`;
+
+  // Tiles follow the order of `palms.metrics` in site-data.js.
   const statsEl = $("#palms-stats");
-  statsEl.innerHTML = metricKeys.map((key) => {
-    const metric = siteData.thisWeek.metrics[key];
+  statsEl.innerHTML = Object.values(palms.metrics).map((metric) => {
     const value = statValue(metric);
 
     if (value === null) {
@@ -217,15 +233,13 @@
     }
 
     const pct = metric.goal ? Math.max(0, Math.min(100, (metric.ytd / metric.goal) * 100)) : 0;
-    const lastWeekStr = metric.lastWeek !== null && metric.lastWeek !== undefined
-      ? `Last week: ${metric.prefix || ""}${formatNumber(metric.lastWeek)}`
-      : "";
+    const changeStr = weeklyChange(metric);
 
     return `
       <div class="stat-tile">
         <p class="stat-label">${esc(metric.label)}</p>
         <p class="stat-value">${value}</p>
-        ${lastWeekStr ? `<p class="stat-delta">${lastWeekStr}</p>` : ""}
+        ${changeStr ? `<p class="stat-delta">${esc(changeStr)}</p>` : ""}
         ${metric.goal ? `
           <div class="meter-track"><div class="meter-fill" style="width:${pct}%"></div></div>
           <p class="stat-goal">${pct.toFixed(0)}% of ${metric.prefix || ""}${formatNumber(metric.goal)} goal</p>

@@ -9,7 +9,7 @@ Static one-page chapter site (plain HTML/CSS/JS, no build step, no backend).
 - Commit author: `mouraotech <apps@mourao.tech>`, set per clone with `git config user.name/user.email`
 
 ## Files
-- `data/site-data.js`: This Week (date, trophy winner, quote + `quoteAuthor`, speakers, PALMS metrics) and the speaker `rotation`. Edited by hand every week.
+- `data/site-data.js`: `thisWeek` (date, `trophyNote`, speakers), `quote` {text, author}, `palms` {asOf YYYY-MM-DD, ytdSince, metrics keyed by name: {label, prefix, ytd, lastWeekYtd (hidden), goal}}, and the speaker `rotation`. Edited by hand every week. The site computes "+X since last week" = ytd − lastWeekYtd. Kept out of members.js because the sync rewrites that file.
 - `data/members.js`: the member database. One record per person keyed by BNI member `id` (stable across syncs), with `enabled` (Members grid visibility), `trophyWinner` (This Week trophy card), `roles` (Chapter Leadership, shown regardless of `enabled`), contact fields, `photo` (chosen image; "" falls back to `bniPhoto`), plus a top-level `roles` table of `{role, section, max}` that sets section/order and caps. Valid JSON after `window.MEMBERS_DB = `. `scripts/sync-bni.py` adds new people and fills empty fields, never overwrites filled ones (except `bni*` mirror fields); never touches enabled/trophyWinner/email/photo, reports differences; `--dry-run`, `--update`.
 - `img/members/`: member photos referenced by `photo` (see its README).
 - `js/app.js` renders the data files; `css/styles.css` holds the theme; `img/` holds site images (spec in `img/README.md`).

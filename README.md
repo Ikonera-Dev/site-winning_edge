@@ -184,7 +184,15 @@ but a few external things it depends on:
 ## Updating content week to week
 
 Open `data/site-data.js` and edit the `thisWeek` block (trophy note,
-speakers, quote, PALMS metrics) and the `rotation` array. Pick the trophy
+speakers), the `quote` (`text` + `author`), the `palms` report, and the
+`rotation` array.
+
+**PALMS:** each metric stores `ytd` (this week's year-to-date total),
+`lastWeekYtd` (last week's year-to-date total, not shown) and `goal`
+(full-year goal). The site shows the difference as "+$35,600 since last
+week" and the meter as a % of the goal. Each week, copy every `ytd` into
+`lastWeekYtd`, type the new `ytd` numbers, and set `asOf` to the report
+date as `YYYY-MM-DD`. Use `null` for anything not reported. Pick the trophy
 winner by moving `"trophyWinner": true` in `data/members.js`. Full instructions
 are in the comment block at the top of that file.
 
