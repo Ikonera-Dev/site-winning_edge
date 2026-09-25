@@ -84,9 +84,17 @@ The `roles` list at the top of `data/members.js` defines every role:
 - **`section`** is the heading the role is listed under in Chapter
   Leadership. Sections appear in the order of their first role; within a
   section, people are ordered by their highest-listed role, then by name.
-- **`max`** is how many people can hold the role (`null` = no limit). It's
-  recorded but **not enforced yet**: if two people have a capped role, the
-  site shows both and nothing warns.
+- **`max`** is how many people can hold the role (`null` = no limit).
+  Every sync runs a **role cap check**: a capped role must be held by 1 to
+  `max` people. When it fails (too many holders, or nobody), the live BNI
+  page decides. If BNI lists a valid set of holders, the database is set to
+  match; if BNI's own list breaks the cap too, nothing changes and the
+  script tells you to fix it by hand. `--dry-run` shows what it would do.
+- **`bniHolders`** is who BNI listed for the role at the last sync (member
+  ids, refreshed every run; don't edit). If `data/members.js` is edited to
+  break a cap before the next sync, the site still shows at most `max`
+  people, preferring these, then alphabetical, and logs a browser-console
+  warning naming whoever it left out.
 
 The file must stay valid JSON after the `window.MEMBERS_DB = ` line: double
 quotes, no trailing commas, no comments. The sync script stops with the line

@@ -52,10 +52,24 @@
   // gives every role its section and order: sections appear in the order of
   // their first role, and people within a section by their highest-listed
   // role, then by name. Everyone with a role is listed, enabled or not.
-  // `max` (the cap per role) is stored but not enforced here.
   const roleOrder = {};
   const roleSection = {};
   db.roles.forEach((r, i) => { roleOrder[r.role] = i; roleSection[r.role] = r.section; });
+
+  // A role with a `max` is shown on at most that many people. If the file
+  // has more (the sync script normally fixes this from live BNI), the ones
+  // BNI listed at the last sync (`bniHolders`) win, then alphabetical.
+  const hiddenRoles = new Set(); // "personId|role" pairs over the cap
+  db.roles.forEach((r) => {
+    if (r.max === null || r.max === undefined) return;
+    const bniRank = (p) => { const i = (r.bniHolders || []).indexOf(p.id); return i < 0 ? Infinity : i; };
+    const holders = people.filter((p) => (p.roles || []).includes(r.role))
+      .sort((a, b) => bniRank(a) - bniRank(b) || a.name.localeCompare(b.name));
+    if (holders.length <= r.max) return;
+    const extra = holders.slice(r.max);
+    extra.forEach((p) => hiddenRoles.add(`${p.id}|${r.role}`));
+    console.warn(`"${r.role}" allows ${r.max}, ${holders.length} have it. Not showing it for: ${extra.map((p) => p.name).join(", ")}. Run scripts/sync-bni.py to fix.`);
+  });
 
   const OTHER_SECTION = "Leadership"; // for a role missing from the roles table
   const sectionOf = (role) => roleSection[role] || OTHER_SECTION;
@@ -86,7 +100,8 @@
     section,
     people: people
       .map((p) => {
-        const roles = (p.roles || []).filter((role) => sectionOf(role) === section)
+        const roles = (p.roles || [])
+          .filter((role) => sectionOf(role) === section && !hiddenRoles.has(`${p.id}|${role}`))
           .sort((a, b) => rank(a) - rank(b));
         return roles.length ? { ...p, titles: displayTitles(roles), rank: rank(roles[0]) } : null;
       })

@@ -10,7 +10,9 @@
  *  roles: every leadership role, in display order. Each has:
  *    role          the title, exactly as used in people's "roles"
  *    section       the Chapter Leadership heading it's listed under
- *    max           how many people may hold it (null = no limit)
+ *    max           how many people may hold it (null = no limit). The sync
+ *                  checks it against live BNI; the site never shows more.
+ *    bniHolders    ids BNI lists for the role; refreshed every sync
  *  Sections appear in the order of their first role; people within a
  *  section are ordered by their highest-listed role, then by name.
  *
@@ -34,52 +36,81 @@
  */
 
 window.MEMBERS_DB = {
-  "lastSynced": "2026-09-25 01:58 UTC",
+  "lastSynced": "2026-09-25 02:08 UTC",
   "roles": [
     {
       "role": "President",
       "section": "Executive Team",
-      "max": 1
+      "max": 1,
+      "bniHolders": [
+        "nFGBAAeVpNoRUTFpwqNKiA=="
+      ]
     },
     {
       "role": "Vice President",
       "section": "Executive Team",
-      "max": 1
+      "max": 1,
+      "bniHolders": [
+        "SH38I/3252C1r6XB9ifC6w=="
+      ]
     },
     {
       "role": "Secretary / Treasurer",
       "section": "Executive Team",
-      "max": 1
+      "max": 1,
+      "bniHolders": [
+        "0BkSUadz00Gm8d2rjHqMPw=="
+      ]
     },
     {
       "role": "Visitor Host",
       "section": "Visitor Host",
-      "max": null
+      "max": null,
+      "bniHolders": [
+        "kW4lRZHMcM0DS7u84pfh9A==",
+        "+1w2thLr4Ve16fl9Ctp2xw==",
+        "nvAZLxzaizQVjczJ9MFQsA=="
+      ]
     },
     {
       "role": "Membership Committee",
       "section": "Membership Committee",
-      "max": null
+      "max": null,
+      "bniHolders": [
+        "YZ9ufZ4p9c9OWBnIOdnZcA=="
+      ]
     },
     {
       "role": "Membership Committee - Quality Assurance",
       "section": "Membership Committee",
-      "max": null
+      "max": null,
+      "bniHolders": [
+        "YZ9ufZ4p9c9OWBnIOdnZcA=="
+      ]
     },
     {
       "role": "Membership Committee - Member Relations",
       "section": "Membership Committee",
-      "max": null
+      "max": null,
+      "bniHolders": [
+        "i52tH5sJvQf9+rCZ34UWkw=="
+      ]
     },
     {
       "role": "Chapter Webmaster",
       "section": "Supporting Leaders",
-      "max": null
+      "max": null,
+      "bniHolders": [
+        "oTTe8cAKWQ6oG8FJCkt+Pw=="
+      ]
     },
     {
       "role": "Chapter Director Consultant",
       "section": "Regional Support Team",
-      "max": null
+      "max": null,
+      "bniHolders": [
+        "2Gx+vjZha2dDZfFDgHBz6g=="
+      ]
     }
   ],
   "people": [

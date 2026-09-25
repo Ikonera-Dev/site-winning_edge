@@ -29,6 +29,14 @@ ones are reported (--update takes BNI's). A role BNI shows that isn't in the
 database's "roles" table yet is added to it, with no cap ("max": null).
 The sync never changes "enabled", "trophyWinner", "email" or "photo".
 
+Role cap check: every role with a "max" must be held by 1..max people. When
+one fails (too many holders, or nobody), the live BNI page decides: if BNI
+lists a valid set of holders for that role, the database is set to match
+it; if BNI's own list isn't valid either, nothing changes and it's reported
+for you to fix by hand. Each role also stores "bniHolders" (the ids BNI
+lists for it, refreshed every sync) so the site can apply the same
+preference when showing at most "max" people.
+
 Why a script instead of the page fetching this itself: BNI's server doesn't
 send CORS headers, so a browser on your own domain is blocked from reading
 the response directly (this is BNI's restriction, not something we can work
@@ -72,7 +80,9 @@ DB_HEADER = """/**
  *  roles: every leadership role, in display order. Each has:
  *    role          the title, exactly as used in people's "roles"
  *    section       the Chapter Leadership heading it's listed under
- *    max           how many people may hold it (null = no limit)
+ *    max           how many people may hold it (null = no limit). The sync
+ *                  checks it against live BNI; the site never shows more.
+ *    bniHolders    ids BNI lists for the role; refreshed every sync
  *  Sections appear in the order of their first role; people within a
  *  section are ordered by their highest-listed role, then by name.
  *
@@ -381,7 +391,8 @@ def sync(db, found, update):
     by_id = {p.get("id"): p for p in people}
     by_name = {p.get("name", "").lower(): p for p in people}
     report = {"added": [], "filled": [], "updated": [], "differs": [], "refreshed": [],
-              "missing": [], "disabled": [], "newRoles": []}
+              "missing": [], "disabled": [], "newRoles": [],
+              "capFixed": [], "capUnresolved": [], "capChecked": 0, "roleDiffs": []}
 
     for rec in found.values():
         existing = by_id.get(rec["id"]) or by_name.get(rec["name"].lower())
@@ -420,7 +431,8 @@ def sync(db, found, update):
                 existing["roles"] = theirs
                 report["updated"].append(f"{existing['name']}: roles {ours} -> {theirs}")
             else:
-                report["differs"].append(f"{existing['name']}: roles are {ours}, BNI has {theirs}")
+                # Reported after the cap check, which may resolve it.
+                report["roleDiffs"].append((existing, theirs))
 
         for field in MIRROR_FIELDS:
             if existing[field] != rec[field]:
@@ -451,6 +463,61 @@ def add_new_roles(db, leadership_sections, report):
                     report["newRoles"].append(f"{title} (section: {section['section']}, no cap)")
 
 
+def record_bni_holders(db, leadership_sections):
+    """Stores, on each role, the ids of the people BNI currently lists for it."""
+    holders = {}
+    for section in leadership_sections:
+        for p in section["people"]:
+            for title in p["titles"]:
+                holders.setdefault(title, [])
+                if p["id"] not in holders[title]:
+                    holders[title].append(p["id"])
+    db["roles"] = [
+        {"role": r["role"], "section": r["section"], "max": r.get("max"),
+         "bniHolders": holders.get(r["role"], [])}
+        for r in db["roles"]
+    ]
+
+
+def check_caps(db, report):
+    """Every role with a max must be held by 1..max people. Failures are set
+    to BNI's holders when BNI's list is itself valid, else reported."""
+    by_id = {p["id"]: p for p in db["people"]}
+    names = lambda people: ", ".join(p["name"] for p in people) or "nobody"
+    checked = 0
+
+    for r in db["roles"]:
+        cap, role = r.get("max"), r["role"]
+        if cap is None:
+            continue
+        checked += 1
+        holders = [p for p in db["people"] if role in p["roles"]]
+        if 1 <= len(holders) <= cap:
+            continue
+
+        problem = (f"{len(holders)} people hold it, max is {cap} ({names(holders)})"
+                   if holders else "nobody holds it")
+        bni = [by_id[i] for i in r["bniHolders"] if i in by_id]
+        if 1 <= len(bni) <= cap and len(bni) == len(r["bniHolders"]):
+            for p in holders:
+                if p not in bni:
+                    p["roles"].remove(role)
+            for p in bni:
+                if role not in p["roles"]:
+                    p["roles"].append(role)
+            report["capFixed"].append(f"{role}: {problem}. Set to BNI's: {names(bni)}")
+        else:
+            report["capUnresolved"].append(
+                f"{role}: {problem}. BNI lists {len(r['bniHolders'])} "
+                f"({names(bni)}), so it can't decide. Fix by hand.")
+
+    report["capChecked"] = checked
+
+    for person, theirs in report["roleDiffs"]:
+        if set(person["roles"]) != set(theirs):
+            report["differs"].append(f"{person['name']}: roles are {person['roles']}, BNI has {theirs}")
+
+
 def print_report(report, update):
     labels = [
         ("added", "New, added to the database"),
@@ -461,6 +528,8 @@ def print_report(report, update):
         ("missing", "Enabled but no longer on BNI (set \"enabled\": false if they left)"),
         ("disabled", "On BNI's member list but disabled in the database"),
         ("newRoles", "New roles added to the roles table (set \"max\" if it has a cap)"),
+        ("capFixed", "Role cap check failed, fixed from live BNI"),
+        ("capUnresolved", "Role cap check failed, BNI can't resolve it"),
     ]
     any_output = False
     for key, label in labels:
@@ -471,6 +540,8 @@ def print_report(report, update):
                 print(f"  - {line}")
     if not any_output:
         print("\nEveryone on BNI is already in the database and up to date.")
+    if not report["capFixed"] and not report["capUnresolved"]:
+        print(f"\nRole cap check: all {report['capChecked']} capped role(s) OK.")
 
 
 def main():
@@ -501,6 +572,8 @@ def main():
     found = found_on_bni(members, leadership)
     report = sync(db, found, args.update)
     add_new_roles(db, leadership, report)
+    record_bni_holders(db, leadership)
+    check_caps(db, report)
     print_report(report, args.update)
 
     db["people"] = sorted(
