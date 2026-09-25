@@ -220,7 +220,7 @@ window.MEMBERS_DB = {
     },
     {
       "id": "enGC8FICZjNLd4hNocOQmQ==",
-      "enabled": true,
+      "enabled": false,
       "trophyWinner": false,
       "roles": [],
       "name": "Christopher Orrick",
@@ -382,7 +382,7 @@ window.MEMBERS_DB = {
     },
     {
       "id": "NEitSKudkQvJx24u5swEKg==",
-      "enabled": true,
+      "enabled": false,
       "trophyWinner": false,
       "roles": [],
       "name": "Patrick DiTucci",
