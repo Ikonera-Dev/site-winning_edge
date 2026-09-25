@@ -33,6 +33,7 @@ Static one-page chapter site (plain HTML/CSS/JS, no build step, no backend).
 - Ask before pushing changes that alter behavior or layout. Content updates the user dictates can be pushed directly.
 
 ## Open items / known issues
+- **Release on hold (branch `v2`, not pushed):** waiting for the user's images. Then: wire `img/bni-logo.*` into the header and add favicon / apple-touch-icon / og-image tags (spec in `img/README.md`), preview locally, fast-forward `main` to `v2`, push, wait for the Pages build, verify live. Cache: user says Cloudflare's edge TTL is 5 min, but GitHub Pages still sends `cache-control: max-age=600`, so browsers can hold old JS/data for up to 10 min; this release changes HTML + JS + data together, so a stale mix can show the error banner briefly. User declined `?v=` tags.
 - Role caps are enforced: the sync's cap check resolves over-cap/empty capped roles from live BNI (`bniHolders`), else reports "fix by hand"; the site shows at most `max`, preferring `bniHolders`. Caps count sub-roles ("X - Y" counts toward "X"). Caps: President / Vice President / Secretary / Treasurer 1, Visitor Host 3, Membership Committee 3. Trophy winner max 1: site shows the first alphabetical, sync reports extras or none (can't fix from BNI).
 - Not approved yet: having the sync download BNI photos into `img/members/`. BNI's member profile page (memberdetails) returns no data, so the chapter page is the only BNI source.
 - Declined for now: `?v=` version numbers on the asset links in `index.html`.
